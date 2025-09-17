@@ -13,9 +13,10 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #aa66ea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            position: relative;
         }
 
         .container {
@@ -28,7 +29,7 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #fe4fef 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -377,6 +378,119 @@
             display: none;
         }
 
+        /* Popup Styles */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .popup-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .popup {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 450px;
+            overflow: hidden;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .popup-overlay.active .popup {
+            transform: scale(1);
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .popup-header h3 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .popup-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .popup-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .popup-body {
+            padding: 25px;
+            text-align: center;
+        }
+
+        .popup-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .popup-message {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .popup-footer {
+            display: flex;
+            justify-content: center;
+            padding: 0 25px 25px;
+            gap: 15px;
+        }
+
+        .popup-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .popup-btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .popup-btn-secondary {
+            background: #f1f1f1;
+            color: #333;
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 10px;
@@ -416,13 +530,23 @@
             th, td {
                 padding: 10px 8px;
             }
+            
+            .popup {
+                width: 95%;
+                margin: 0 10px;
+            }
+            
+            .popup-footer {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 KONTOL RYOTA</h1>
+            <h1>📋 Sistem Absensi Karyawan</h1>
+            <p>Kelola absensi dengan mudah dan otomatis</p>
         </div>
 
         <div class="current-time">
@@ -473,6 +597,14 @@
             <div id="limitInfo" class="limit-info">
                 ⚠️ Batas maksimal 3 kali absensi per hari telah tercapai untuk karyawan ini.
             </div>
+        </div>
+
+        <div class="reset-section">
+            <h3>⚠️ Reset Data Absensi</h3>
+            <p>Menghapus semua data absensi yang tersimpan. Tindakan ini tidak dapat dibatalkan!</p>
+            <button class="btn btn-danger" onclick="showResetConfirmation()">
+                🗑️ Hapus Semua Data
+            </button>
         </div>
 
         <div class="data-section">
@@ -546,10 +678,29 @@
         </div>
     </div>
 
+    <!-- Popup Peringatan -->
+    <div class="popup-overlay" id="popupOverlay">
+        <div class="popup">
+            <div class="popup-header">
+                <h3 id="popupTitle">⚠️ Peringatan</h3>
+                <div class="popup-close" onclick="closePopup()">✕</div>
+            </div>
+            <div class="popup-body">
+                <div class="popup-icon" id="popupIcon">⚠️</div>
+                <div class="popup-message" id="popupMessage">Pesan akan muncul di sini</div>
+            </div>
+            <div class="popup-footer">
+                <button class="popup-btn popup-btn-primary" id="popupActionButton" onclick="handlePopupAction()">OK</button>
+                <button class="popup-btn popup-btn-secondary" onclick="closePopup()">Batal</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let absensiData = [];
         let filteredData = [];
         let currentWeekFilter = '';
+        let popupActionCallback = null;
 
         // Update current time
         function updateCurrentTime() {
@@ -561,8 +712,11 @@
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
             });
-            document.getElementById('currentTime').textContent = `⏰ ${timeString}`;
+            document.getElementById('currentTime').textContent = `⏰ ${timeString} WIB`;
         }
 
         // Initialize
@@ -577,6 +731,29 @@
         // Set current week in week filter
         const currentWeek = getWeekString(new Date());
         document.getElementById('weekFilter').value = currentWeek;
+
+        // Popup functions
+        function showPopup(title, message, icon = '⚠️', actionText = 'OK', actionCallback = null) {
+            document.getElementById('popupTitle').textContent = title;
+            document.getElementById('popupMessage').textContent = message;
+            document.getElementById('popupIcon').textContent = icon;
+            document.getElementById('popupActionButton').textContent = actionText;
+            popupActionCallback = actionCallback;
+            
+            document.getElementById('popupOverlay').classList.add('active');
+        }
+
+        function closePopup() {
+            document.getElementById('popupOverlay').classList.remove('active');
+            popupActionCallback = null;
+        }
+
+        function handlePopupAction() {
+            if (popupActionCallback) {
+                popupActionCallback();
+            }
+            closePopup();
+        }
 
         function getWeekString(date) {
             const year = date.getFullYear();
@@ -685,23 +862,20 @@
             const jamKeluar = document.getElementById('jamKeluar').value;
 
             if (!nama || !jabatan || !tanggalDuty || !jamMasuk || !jamKeluar) {
-                alert('⚠️ Mohon lengkapi semua field!');
+                showPopup('⚠️ Peringatan', 'Mohon lengkapi semua field!', '⚠️', 'OK');
                 return;
             }
 
             // Cek apakah sudah mencapai batas 3 data per hari
             if (!cekBatasHarian(nama, tanggalDuty)) {
-                document.getElementById('limitInfo').style.display = 'block';
-                alert('⚠️ Batas maksimal 3 kali absensi per hari telah tercapai untuk karyawan ini.');
+                showPopup('⛔ Batas Tercapai', 'Batas maksimal 3 kali absensi per hari telah tercapai untuk karyawan ini.', '⛔', 'Mengerti');
                 return;
-            } else {
-                document.getElementById('limitInfo').style.display = 'none';
             }
 
             const totalJam = hitungJamDuty(jamMasuk, jamKeluar);
             
             if (totalJam === 'Format jam salah') {
-                alert('⚠️ Format jam salah! Gunakan format HH:MM (contoh: 08:00)');
+                showPopup('⚠️ Format Salah', 'Format jam salah! Gunakan format HH:MM (contoh: 08:00)', '⚠️', 'Mengerti');
                 return;
             }
 
@@ -722,7 +896,23 @@
             absensiData.push(absensi);
             applyFilters();
             clearForm();
-            alert('✅ Data absensi berhasil disimpan!');
+            showPopup('✅ Berhasil', 'Data absensi berhasil disimpan!', '✅', 'OK');
+        }
+
+        function showResetConfirmation() {
+            showPopup(
+                '⚠️ Konfirmasi Reset', 
+                'Apakah Anda yakin ingin menghapus semua data absensi? Tindakan ini tidak dapat dibatalkan!', 
+                '⚠️', 
+                'Ya, Hapus Semua',
+                resetAllData
+            );
+        }
+
+        function resetAllData() {
+            absensiData = [];
+            applyFilters();
+            showPopup('✅ Berhasil', 'Semua data absensi telah dihapus.', '✅', 'OK');
         }
 
         function filterByWeek() {
