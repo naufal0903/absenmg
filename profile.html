@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Pengguna - Sistem Absensi Karyawan</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2d2d2d;
+            padding: 24px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .header p {
+            font-size: 1rem;
+            color: #a0a0a0;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-role {
+            background: #bb86fc;
+            color: #121212;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .back-btn, .logout-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .back-btn {
+            background: #03dac6;
+            color: #121212;
+        }
+
+        .back-btn:hover {
+            background: #018786;
+            color: #ffffff;
+        }
+
+        .logout-btn {
+            background: #cf6679;
+            color: #121212;
+        }
+
+        .logout-btn:hover {
+            background: #b00020;
+            color: #ffffff;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .loading-spinner {
+            border: 3px solid #2d2d2d;
+            border-top: 3px solid #bb86fc;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .profile-container {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .profile-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #bb86fc, #03dac6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(187, 134, 252, 0.3);
+        }
+
+        .profile-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+
+        .profile-email {
+            color: #a0a0a0;
+            margin-bottom: 15px;
+        }
+
+        .profile-role {
+            background: #bb86fc;
+            color: #121212;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .profile-content {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .profile-section {
+            background: #252525;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid #333;
+        }
+
+        .profile-section h2 {
+            font-size: 1.3rem;
+            color: #bb86fc;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #333;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #bb86fc;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #a0a0a0;
+        }
+
+        .recent-activity {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+
+        .recent-activity h3 {
+            color: #bb86fc;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .activity-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-date {
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .activity-hours {
+            color: #03dac6;
+            font-size: 0.9rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .primary-btn {
+            background: #bb86fc;
+            color: #121212;
+        }
+
+        .primary-btn:hover {
+            background: #9a67ea;
+        }
+
+        .secondary-btn {
+            background: #03dac6;
+            color: #121212;
+        }
+
+        .secondary-btn:hover {
+            background: #018786;
+            color: #ffffff;
+        }
+
+        .danger-btn {
+            background: #cf6679;
+            color: #121212;
+        }
+
+        .danger-btn:hover {
+            background: #b00020;
+            color: #ffffff;
+        }
+
+        .weekly-stats {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+
+        .weekly-stats h3 {
+            color: #bb86fc;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .week-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .week-nav-btn {
+            background: #3d3d3d;
+            border: none;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .week-nav-btn:hover {
+            background: #4d4d4d;
+        }
+
+        .week-nav-btn:disabled {
+            background: #2d2d2d;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .current-week {
+            background: #252525;
+            padding: 8px 16px;
+            border-radius: 6px;
+            color: #bb86fc;
+            font-weight: 500;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .weekly-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .weekly-stat-card {
+            background: #252525;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        .weekly-stat-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #03dac6;
+            margin-bottom: 2px;
+        }
+
+        .weekly-stat-label {
+            font-size: 0.75rem;
+            color: #a0a0a0;
+        }
+
+        .weekly-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .day-card {
+            background: #252525;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #333;
+            transition: all 0.2s ease;
+        }
+
+        .day-card.has-data {
+            border-color: #bb86fc;
+            background: linear-gradient(135deg, #252525 0%, #2d2d2d 100%);
+        }
+
+        .day-card.today {
+            border-color: #03dac6;
+            background: linear-gradient(135deg, #1e3a32 0%, #252525 100%);
+        }
+
+        .day-name {
+            font-size: 0.7rem;
+            color: #a0a0a0;
+            margin-bottom: 4px;
+        }
+
+        .day-date {
+            font-size: 0.8rem;
+            color: #fff;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .day-hours {
+            font-size: 0.7rem;
+            color: #03dac6;
+            font-weight: 600;
+        }
+
+        .day-card.no-data .day-hours {
+            color: #666;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 400px;
+            overflow: hidden;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            border: 1px solid #333;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            background: #252525;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            position: relative;
+        }
+
+        .modal-header h3 {
+            font-size: 1.2rem;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #333;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #a0a0a0;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .modal-close:hover {
+            background: #444;
+            color: #ffffff;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-form-group {
+            margin-bottom: 20px;
+        }
+
+        .modal-form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #cccccc;
+            font-size: 0.9rem;
+        }
+
+        .modal-form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #e0e0e0;
+            transition: all 0.2s ease;
+        }
+
+        .modal-form-group input:focus {
+            outline: none;
+            border-color: #bb86fc;
+            box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.2);
+        }
+
+        .password-requirements {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: center;
+            padding: 0 24px 24px;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn-primary {
+            background: #bb86fc;
+            color: #121212;
+        }
+
+        .modal-btn-primary:hover {
+            background: #9a67ea;
+        }
+
+        .modal-btn-secondary {
+            background: #3d3d3d;
+            color: #e0e0e0;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #4d4d4d;
+        }
+
+        .modal-btn:disabled {
+            background: #2d2d2d;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            background: #1b4332;
+            color: #b7e4c7;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .error-message {
+            background: #5d1a1a;
+            color: #ffb3b3;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .security-warning {
+            background: #5d1a1a;
+            color: #ffb3b3;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            border-left: 4px solid #cf6679;
+        }
+
+        .reauth-explanation {
+            background: #2d2d2d;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: #cccccc;
+            border-left: 4px solid #bb86fc;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            body {
+                padding: 0;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .user-info {
+                position: static;
+                justify-content: center;
+                margin-top: 15px;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
+            .profile-container {
+                padding: 20px;
+            }
+            
+            .profile-avatar {
+                width: 100px;
+                height: 100px;
+                font-size: 2.5rem;
+            }
+            
+            .profile-name {
+                font-size: 1.5rem;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .weekly-days {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .weekly-days {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .week-selector {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <div class="header">
+            <h1>👤 Profil Pengguna</h1>
+            <p>Kelola informasi akun dan lihat statistik Anda</p>
+            
+            <div class="user-info">
+                <div class="user-role" id="userRole">Staff</div>
+                <button class="back-btn" onclick="goBack()">⬅ Kembali</button>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Direct Password Change Modal -->
+        <div class="modal-overlay" id="directPasswordModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>🔐 Ubah Password</h3>
+                    <button class="modal-close" onclick="closeDirectPasswordModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="reauth-explanation">
+                        <strong>Informasi Penting:</strong> Password Anda akan diubah tanpa perlu mengetahui password lama. Pastikan password baru Anda kuat dan mudah diingat.
+                    </div>
+                    <div id="directPasswordMessage" style="display: none;"></div>
+                    <form id="directPasswordForm">
+                        <div class="modal-form-group">
+                            <label for="newPasswordDirect">Password Baru</label>
+                            <input type="password" id="newPasswordDirect" placeholder="Masukkan password baru" required>
+                            <div class="password-requirements">
+                                Minimal 8 karakter. Disarankan menggunakan kombinasi huruf, angka, dan karakter khusus.
+                            </div>
+                        </div>
+                        <div class="modal-form-group">
+                            <label for="confirmPasswordDirect">Konfirmasi Password</label>
+                            <input type="password" id="confirmPasswordDirect" placeholder="Ulangi password baru" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-primary" onclick="preparePasswordChange()" id="changePasswordDirectBtn">
+                        Ubah Password
+                    </button>
+                    <button class="modal-btn modal-btn-secondary" onclick="closeDirectPasswordModal()">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div class="modal-overlay" id="confirmationModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>⚠️ Konfirmasi Perubahan Password</h3>
+                    <button class="modal-close" onclick="closeConfirmationModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="security-warning">
+                        <strong>Peringatan Keamanan:</strong> Anda akan mengubah password akun Anda. Pastikan ini adalah tindakan yang disengaja. Setelah password diubah, Anda akan tetap login dengan session saat ini.
+                    </div>
+                    <p>Apakah Anda yakin ingin mengubah password?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-primary" onclick="confirmPasswordChange()" id="confirmChangeBtn">
+                        Ya, Ubah Password
+                    </button>
+                    <button class="modal-btn modal-btn-secondary" onclick="closeConfirmationModal()">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingProfile" class="loading">
+            <div class="loading-spinner"></div>
+            <p>Memuat profil pengguna...</p>
+        </div>
+
+        <div class="profile-container" id="profileContainer" style="display: none;">
+            <div class="profile-header">
+                <div class="profile-avatar" id="profileAvatar">
+                    U
+                </div>
+                <h1 class="profile-name" id="profileName">User Name</h1>
+                <p class="profile-email" id="profileEmail">user@example.com</p>
+                <div class="profile-role" id="profileRole">Staff</div>
+            </div>
+
+            <div class="profile-content">
+                <div class="profile-section">
+                    <h2>📋 Informasi Pribadi</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Nama Lengkap</span>
+                            <span class="info-value" id="infoName">User Name</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Email</span>
+                            <span class="info-value" id="infoEmail">user@example.com</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Jabatan</span>
+                            <span class="info-value" id="infoPosition">Staff</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status Akun</span>
+                            <span class="info-value" id="accountStatus">Aktif</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-section">
+                    <h2>📊 Statistik Kehadiran</h2>
+                    <div id="attendanceStats">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="totalAttendance">0</div>
+                                <div class="stat-label">Total Kehadiran</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="totalHours">0</div>
+                                <div class="stat-label">Total Jam Kerja</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="avgHours">0</div>
+                                <div class="stat-label">Rata-rata Jam/Hari</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="thisMonth">0</div>
+                                <div class="stat-label">Hadir Bulan Ini</div>
+                            </div>
+                        </div>
+                        
+                        <div class="recent-activity">
+                            <h3>📅 Aktivitas Terbaru (10 Terakhir)</h3>
+                            <div class="activity-list" id="recentActivityList">
+                                <!-- Data akan diisi oleh JavaScript -->
+                            </div>
+                        </div>
+
+                        <div class="weekly-stats">
+                            <h3>📊 Statistik Mingguan</h3>
+                            <div class="week-selector">
+                                <button class="week-nav-btn" id="prevWeekBtn" onclick="changeWeek(-1)">◀ Minggu Lalu</button>
+                                <div class="current-week" id="currentWeekDisplay">Minggu ini</div>
+                                <button class="week-nav-btn" id="nextWeekBtn" onclick="changeWeek(1)">Minggu Depan ▶</button>
+                            </div>
+                            
+                            <div class="weekly-summary">
+                                <div class="weekly-stat-card">
+                                    <div class="weekly-stat-value" id="weeklyTotalHours">0</div>
+                                    <div class="weekly-stat-label">Total Jam</div>
+                                </div>
+                                <div class="weekly-stat-card">
+                                    <div class="weekly-stat-value" id="weeklyDaysWorked">0</div>
+                                    <div class="weekly-stat-label">Hari Kerja</div>
+                                </div>
+                                <div class="weekly-stat-card">
+                                    <div class="weekly-stat-value" id="weeklyAvgHours">0</div>
+                                    <div class="weekly-stat-label">Rata-rata/Hari</div>
+                                </div>
+                            </div>
+                            
+                            <div class="weekly-days" id="weeklyDaysContainer">
+                                <!-- Days akan diisi oleh JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                    <div id="noAttendanceData" class="no-data" style="display: none;">
+                        <p>Belum ada data kehadiran. Silakan lakukan absensi terlebih dahulu.</p>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="action-btn secondary-btn" onclick="goToAttendance()">
+                        📊 Lihat Semua Absensi
+                    </button>
+                    <button class="action-btn primary-btn" onclick="openDirectPasswordModal()">
+                        🔒 Ubah Password
+                    </button>
+                    <button class="action-btn danger-btn" onclick="logout()">
+                        🚪 Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script>
+        // Konfigurasi Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAy48i9HQho87owk1iBcktmZuaHI_aCjrI",
+            authDomain: "absen-26c48.firebaseapp.com",
+            databaseURL: "https://absen-26c48-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "absen-26c48",
+            storageBucket: "absen-26c48.firebasestorage.app",
+            messagingSenderId: "760465739937",
+            appId: "1:760465739937:web:d11bebb7d6d8950beee0e0",
+            measurementId: "G-RSGE82JVE4"
+        };
+
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+        let currentWeekOffset = 0;
+        let allAttendanceData = [];
+        let newPasswordToSet = "";
+
+        // Fungsi untuk kembali ke halaman sebelumnya
+        function goBack() {
+            window.location.href = 'main.html';
+        }
+
+        function goToAttendance() {
+            window.location.href = 'main.html';
+        }
+
+        // Fungsi untuk logout
+        function logout() {
+            auth.signOut().then(() => {
+                localStorage.removeItem('user');
+                window.location.href = 'index.html';
+            }).catch((error) => {
+                console.error('Error signing out:', error);
+                localStorage.removeItem('user');
+                window.location.href = 'index.html';
+            });
+        }
+
+        // Direct Password Change Functions
+        function openDirectPasswordModal() {
+            document.getElementById('directPasswordModal').classList.add('active');
+            document.getElementById('newPasswordDirect').focus();
+        }
+
+        function closeDirectPasswordModal() {
+            document.getElementById('directPasswordModal').classList.remove('active');
+            document.getElementById('directPasswordForm').reset();
+            document.getElementById('directPasswordMessage').style.display = 'none';
+        }
+
+        function openConfirmationModal() {
+            document.getElementById('confirmationModal').classList.add('active');
+        }
+
+        function closeConfirmationModal() {
+            document.getElementById('confirmationModal').classList.remove('active');
+        }
+
+        function showDirectPasswordMessage(message, isSuccess = false) {
+            const messageEl = document.getElementById('directPasswordMessage');
+            messageEl.textContent = message;
+            messageEl.className = isSuccess ? 'success-message' : 'error-message';
+            messageEl.style.display = 'block';
+            
+            // Scroll ke pesan
+            messageEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function validatePassword(password) {
+            // Minimal 8 karakter
+            if (password.length < 8) {
+                return { isValid: false, message: "Password harus minimal 8 karakter." };
+            }
+            
+            // Cek apakah mengandung huruf dan angka
+            const hasLetter = /[a-zA-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            
+            if (!hasLetter || !hasNumber) {
+                return { 
+                    isValid: false, 
+                    message: "Password harus mengandung kombinasi huruf dan angka." 
+                };
+            }
+            
+            return { isValid: true, message: "Password valid." };
+        }
+
+        function preparePasswordChange() {
+            const newPassword = document.getElementById('newPasswordDirect').value;
+            const confirmPassword = document.getElementById('confirmPasswordDirect').value;
+
+            if (!newPassword || !confirmPassword) {
+                showDirectPasswordMessage('Mohon isi semua field.');
+                return;
+            }
+
+            // Validasi kekuatan password
+            const validation = validatePassword(newPassword);
+            if (!validation.isValid) {
+                showDirectPasswordMessage(validation.message);
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showDirectPasswordMessage('Password dan konfirmasi password tidak cocok.');
+                return;
+            }
+
+            // Simpan password baru dan buka modal konfirmasi
+            newPasswordToSet = newPassword;
+            closeDirectPasswordModal();
+            openConfirmationModal();
+        }
+
+        async function confirmPasswordChange() {
+            const confirmBtn = document.getElementById('confirmChangeBtn');
+            
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Mengubah...';
+
+            try {
+                const user = auth.currentUser;
+                if (user) {
+                    await user.updatePassword(newPasswordToSet);
+                    
+                    // Tampilkan pesan sukses
+                    closeConfirmationModal();
+                    openDirectPasswordModal();
+                    showDirectPasswordMessage('Password berhasil diubah! Anda dapat menutup jendela ini.', true);
+                    
+                    // Log untuk security audit
+                    console.log(`Password changed for user: ${user.email} at ${new Date().toISOString()}`);
+                    
+                    // Reset form setelah beberapa detik
+                    setTimeout(() => {
+                        closeDirectPasswordModal();
+                        newPasswordToSet = "";
+                    }, 3000);
+                } else {
+                    showDirectPasswordMessage('Sesi telah berakhir. Silakan login ulang.');
+                    closeConfirmationModal();
+                }
+            } catch (error) {
+                console.error('Error changing password:', error);
+                
+                if (error.code === 'auth/requires-recent-login') {
+                    // Otomatis logout dan redirect ke halaman login
+                    closeConfirmationModal();
+                    openDirectPasswordModal();
+                    showDirectPasswordMessage('Sesi keamanan kedaluwarsa. Mengalihkan ke halaman login...', false);
+                    
+                    setTimeout(async () => {
+                        try {
+                            await auth.signOut();
+                            localStorage.removeItem('user');
+                            // Tambahkan flag untuk auto-redirect ke profile setelah login
+                            localStorage.setItem('redirectToProfile', 'true');
+                            window.location.href = 'index.html';
+                        } catch (logoutError) {
+                            console.error('Error during logout:', logoutError);
+                            localStorage.removeItem('user');
+                            localStorage.setItem('redirectToProfile', 'true');
+                            window.location.href = 'index.html';
+                        }
+                    }, 2000);
+                    
+                } else {
+                    let errorMessage = 'Gagal mengubah password. ';
+                    if (error.code === 'auth/weak-password') {
+                        errorMessage = 'Password terlalu lemah. Gunakan kombinasi huruf, angka, dan simbol.';
+                    } else {
+                        errorMessage += error.message;
+                    }
+                    
+                    closeConfirmationModal();
+                    openDirectPasswordModal();
+                    showDirectPasswordMessage(errorMessage);
+                }
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Ya, Ubah Password';
+            }
+        }
+
+        // Fungsi untuk menghitung total menit dari format jam duty
+        function hitungTotalMenit(jamDutyString) {
+            if (!jamDutyString || jamDutyString === '-' || jamDutyString === 'Format jam salah') {
+                return 0;
+            }
+            
+            const match = jamDutyString.match(/(\d+) jam (\d+) menit/);
+            if (match) {
+                const hours = parseInt(match[1]);
+                const minutes = parseInt(match[2]);
+                return hours * 60 + minutes;
+            }
+            return 0;
+        }
+
+        // Fungsi untuk mendapatkan data absensi dari Firestore berdasarkan user yang login
+        async function getAttendanceData(userName, userId, userEmail) {
+            try {
+                let attendanceData = [];
+                
+                // Method 1: Cari berdasarkan nama exact match
+                try {
+                    let query1 = db.collection("absensi")
+                        .where("nama", "==", userName)
+                        .orderBy("tanggalDuty", "desc");
+                    
+                    let snapshot1 = await query1.get();
+                    if (!snapshot1.empty) {
+                        snapshot1.forEach(doc => {
+                            attendanceData.push({ id: doc.id, ...doc.data() });
+                        });
+                    }
+                } catch (e) {
+                    console.log("Method 1 failed:", e.message);
+                }
+                
+                // Method 2: Jika masih kosong, cari berdasarkan userId
+                if (attendanceData.length === 0 && userId) {
+                    try {
+                        let query2 = db.collection("absensi")
+                            .where("userId", "==", userId)
+                            .orderBy("tanggalDuty", "desc");
+                        
+                        let snapshot2 = await query2.get();
+                        if (!snapshot2.empty) {
+                            snapshot2.forEach(doc => {
+                                attendanceData.push({ id: doc.id, ...doc.data() });
+                            });
+                        }
+                    } catch (e) {
+                        console.log("Method 2 failed:", e.message);
+                    }
+                }
+                
+                // Method 3: Jika masih kosong, cari berdasarkan email prefix
+                if (attendanceData.length === 0 && userEmail) {
+                    const emailPrefix = userEmail.split('@')[0];
+                    try {
+                        let query3 = db.collection("absensi")
+                            .where("nama", "==", emailPrefix)
+                            .orderBy("tanggalDuty", "desc");
+                        
+                        let snapshot3 = await query3.get();
+                        if (!snapshot3.empty) {
+                            snapshot3.forEach(doc => {
+                                attendanceData.push({ id: doc.id, ...doc.data() });
+                            });
+                        }
+                    } catch (e) {
+                        console.log("Method 3 failed:", e.message);
+                    }
+                }
+                
+                // Method 4: Jika semua gagal, ambil semua data dan filter manual
+                if (attendanceData.length === 0) {
+                    try {
+                        console.log("Trying manual filter method...");
+                        let allQuery = db.collection("absensi");
+                        let allSnapshot = await allQuery.get();
+                        
+                        if (!allSnapshot.empty) {
+                            allSnapshot.forEach(doc => {
+                                const data = doc.data();
+                                // Filter berdasarkan nama atau userId
+                                if (data.nama === userName || 
+                                    data.nama === userEmail.split('@')[0] ||
+                                    (userId && data.userId === userId)) {
+                                    attendanceData.push({ id: doc.id, ...data });
+                                }
+                            });
+                            
+                            // Sort manual by date descending
+                            attendanceData.sort((a, b) => new Date(b.tanggalDuty) - new Date(a.tanggalDuty));
+                        }
+                    } catch (e) {
+                        console.log("Method 4 failed:", e.message);
+                    }
+                }
+                
+                console.log(`Found ${attendanceData.length} attendance records for user:`, userName);
+                return attendanceData;
+                
+            } catch (error) {
+                console.error("Error getting attendance data: ", error);
+                return [];
+            }
+        }
+
+        // Fungsi untuk menghitung statistik dari data absensi
+        function calculateStats(attendanceData) {
+            if (attendanceData.length === 0) {
+                return {
+                    totalAttendance: 0,
+                    totalHours: 0,
+                    avgHours: 0,
+                    thisMonth: 0,
+                    hasData: false
+                };
+            }
+            
+            // Hitung total kehadiran
+            const totalAttendance = attendanceData.length;
+            
+            // Hitung total jam kerja
+            let totalMinutes = 0;
+            attendanceData.forEach(item => {
+                totalMinutes += hitungTotalMenit(item.totalJam);
+            });
+            
+            const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+            
+            // Hitung rata-rata jam per hari
+            const avgHours = totalMinutes > 0 ? Math.round(totalMinutes / totalAttendance / 60 * 10) / 10 : 0;
+            
+            // Hitung kehadiran bulan ini
+            const today = new Date();
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            const thisMonth = attendanceData.filter(item => {
+                const itemDate = new Date(item.tanggalDuty);
+                return itemDate >= startOfMonth;
+            }).length;
+            
+            return {
+                totalAttendance,
+                totalHours,
+                avgHours,
+                thisMonth,
+                hasData: true
+            };
+        }
+
+        // Fungsi untuk menampilkan aktivitas terbaru
+        function displayRecentActivity(attendanceData) {
+            const activityList = document.getElementById('recentActivityList');
+            
+            if (attendanceData.length === 0) {
+                activityList.innerHTML = '<div class="no-data">Belum ada aktivitas absensi</div>';
+                return;
+            }
+            
+            // Ambil 10 data terakhir
+            const recentData = attendanceData.slice(0, 10);
+            
+            activityList.innerHTML = recentData.map(item => {
+                const date = new Date(item.tanggalDuty);
+                const formattedDate = date.toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long', 
+                    day: 'numeric'
+                });
+                
+                return `
+                    <div class="activity-item">
+                        <div>
+                            <div class="activity-date">${formattedDate}</div>
+                            <div style="font-size: 0.85rem; color: #a0a0a0;">
+                                ${item.jamMasuk} - ${item.jamKeluar} WIB
+                            </div>
+                        </div>
+                        <div class="activity-hours">${item.totalJam}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getRoleDisplayName(role) {
+            const roleMapping = {
+                'boss': 'Boss/Admin',
+                'manajer': 'Manajer',
+                'senior': 'Senior',
+                'mechanic': 'Mechanic', 
+                'trainee': 'Trainee',
+                'staff': 'Staff'
+            };
+            
+            return roleMapping[role] || role;
+        }
+
+        // Weekly Statistics Functions
+        function getWeekDates(offset = 0) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            // Calculate the start of the current week (Monday)
+            const dayOfWeek = today.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(today);
+            monday.setDate(today.getDate() + mondayOffset + (offset * 7));
+            
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(monday);
+                date.setDate(monday.getDate() + i);
+                weekDates.push(date);
+            }
+            
+            return weekDates;
+        }
+
+        function formatWeekRange(weekDates) {
+            const start = weekDates[0];
+            const end = weekDates[6];
+            const startStr = start.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            const endStr = end.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            return `${startStr} - ${endStr}`;
+        }
+
+        function changeWeek(direction) {
+            currentWeekOffset += direction;
+            updateWeeklyStats(allAttendanceData);
+            
+            // Disable next week button if it would go into future
+            const nextWeekBtn = document.getElementById('nextWeekBtn');
+            nextWeekBtn.disabled = currentWeekOffset >= 0;
+        }
+
+        function updateWeeklyStats(attendanceData) {
+            const weekDates = getWeekDates(currentWeekOffset);
+            const weekRange = formatWeekRange(weekDates);
+            const today = new Date();
+            
+            // Update week display
+            document.getElementById('currentWeekDisplay').textContent = weekRange;
+            
+            // Filter data for current week
+            const weeklyData = attendanceData.filter(item => {
+                const itemDate = new Date(item.tanggalDuty);
+                return weekDates.some(weekDate => 
+                    weekDate.toISOString().split('T')[0] === itemDate.toISOString().split('T')[0]
+                );
+            });
+            
+            // Calculate weekly totals
+            let totalMinutes = 0;
+            const daysWorked = new Set();
+            
+            weeklyData.forEach(item => {
+                totalMinutes += hitungTotalMenit(item.totalJam);
+                daysWorked.add(item.tanggalDuty);
+            });
+            
+            const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+            const daysWorkedCount = daysWorked.size;
+            const avgHours = daysWorkedCount > 0 ? Math.round(totalMinutes / daysWorkedCount / 60 * 10) / 10 : 0;
+            
+            // Update weekly summary
+            document.getElementById('weeklyTotalHours').textContent = totalHours;
+            document.getElementById('weeklyDaysWorked').textContent = daysWorkedCount;
+            document.getElementById('weeklyAvgHours').textContent = avgHours;
+            
+            // Update daily cards
+            const container = document.getElementById('weeklyDaysContainer');
+            container.innerHTML = '';
+            
+            const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+            
+            weekDates.forEach((date, index) => {
+                const dateStr = date.toISOString().split('T')[0];
+                const dayData = weeklyData.filter(item => item.tanggalDuty === dateStr);
+                
+                let totalDayMinutes = 0;
+                dayData.forEach(item => {
+                    totalDayMinutes += hitungTotalMenit(item.totalJam);
+                });
+                const dayHours = Math.round(totalDayMinutes / 60 * 10) / 10;
+                
+                const isToday = date.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+                const hasData = dayData.length > 0;
+                
+                const dayCard = document.createElement('div');
+                dayCard.className = `day-card ${hasData ? 'has-data' : 'no-data'} ${isToday ? 'today' : ''}`;
+                dayCard.innerHTML = `
+                    <div class="day-name">${dayNames[index]}</div>
+                    <div class="day-date">${date.getDate()}</div>
+                    <div class="day-hours">${hasData ? `${dayHours}j` : '-'}</div>
+                `;
+                
+                container.appendChild(dayCard);
+            });
+        }
+
+        // Cek autentikasi dan load data user
+        async function checkAuthAndLoadProfile() {
+            const userData = localStorage.getItem('user');
+            
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            currentUser = JSON.parse(userData);
+            
+            // Load data user dari Firestore untuk data terbaru
+            try {
+                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                if (userDoc.exists) {
+                    const userProfile = userDoc.data();
+                    currentUser = { ...currentUser, ...userProfile };
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                }
+            } catch (error) {
+                console.error('Error loading user profile:', error);
+            }
+            
+            // Tentukan nama user untuk pencarian data absensi
+            const userName = currentUser.displayName || currentUser.name || currentUser.email.split('@')[0];
+            
+            console.log("Searching attendance data for:", {
+                userName: userName,
+                userId: currentUser.uid,
+                email: currentUser.email
+            });
+            
+            // Tampilkan data user di UI
+            document.getElementById('userRole').textContent = getRoleDisplayName(currentUser.role);
+            document.getElementById('profileName').textContent = userName;
+            document.getElementById('profileEmail').textContent = currentUser.email;
+            document.getElementById('profileRole').textContent = getRoleDisplayName(currentUser.role);
+            document.getElementById('profileAvatar').textContent = userName.charAt(0).toUpperCase();
+            
+            document.getElementById('infoName').textContent = userName;
+            document.getElementById('infoEmail').textContent = currentUser.email;
+            document.getElementById('infoPosition').textContent = getRoleDisplayName(currentUser.role);
+            document.getElementById('accountStatus').textContent = 'Aktif';
+            
+            // Ambil data absensi dari Firestore
+            const attendanceData = await getAttendanceData(userName, currentUser.uid, currentUser.email);
+            allAttendanceData = attendanceData; // Store for weekly view
+            const stats = calculateStats(attendanceData);
+            
+            // Tampilkan statistik atau pesan tidak ada data
+            if (stats.hasData) {
+                document.getElementById('totalAttendance').textContent = stats.totalAttendance;
+                document.getElementById('totalHours').textContent = stats.totalHours;
+                document.getElementById('avgHours').textContent = stats.avgHours;
+                document.getElementById('thisMonth').textContent = stats.thisMonth;
+                
+                // Tampilkan aktivitas terbaru
+                displayRecentActivity(attendanceData);
+                
+                // Tampilkan statistik mingguan
+                updateWeeklyStats(attendanceData);
+                
+                document.getElementById('attendanceStats').style.display = 'block';
+                document.getElementById('noAttendanceData').style.display = 'none';
+            } else {
+                document.getElementById('attendanceStats').style.display = 'none';
+                document.getElementById('noAttendanceData').style.display = 'block';
+            }
+            
+            // Initialize next week button state
+            document.getElementById('nextWeekBtn').disabled = currentWeekOffset >= 0;
+            
+            // Sembunyikan loading dan tampilkan konten
+            document.getElementById('loadingProfile').style.display = 'none';
+            document.getElementById('profileContainer').style.display = 'flex';
+        }
+
+        // Initialize saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthAndLoadProfile();
+            
+            // Add keyboard event for modals
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeDirectPasswordModal();
+                    closeConfirmationModal();
+                }
+            });
+            
+            // Handle enter key in password form
+            document.getElementById('newPasswordDirect').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    preparePasswordChange();
+                }
+            });
+            
+            document.getElementById('confirmPasswordDirect').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    preparePasswordChange();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
