@@ -1641,6 +1641,7 @@
                 totalJam,
                 status,
                 userId: currentUser.uid, // Tambahkan user ID untuk tracking
+                userEmail: currentUser.email, // TAMBAHAN: Untuk backup matching
                 waktuInput: new Date().toISOString()
             };
 
@@ -1655,6 +1656,23 @@
             } finally {
                 document.getElementById('loadingData').style.display = 'none';
             }
+        }
+
+        function checkStoredData() {
+            console.log('=== CHECKING STORED DATA ===');
+            console.log('Current User:', currentUser);
+            console.log('All Absensi Data:');
+            absensiData.forEach((item, index) => {
+                console.log(`${index + 1}.`, {
+                    nama: item.nama,
+                    userId: item.userId,
+                    userEmail: item.userEmail,
+                    tanggal: item.tanggalDuty,
+                    jamMasuk: item.jamMasuk,
+                    jamKeluar: item.jamKeluar
+                });
+            });
+            console.log('=============================');
         }
 
         function showResetConfirmation() {
