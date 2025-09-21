@@ -1425,7 +1425,7 @@
             });
         }
 
-        // Update current time
+        // Update current time dan sinkronisasi tanggal duty
         function updateCurrentTime() {
             const now = new Date();
             const timeString = now.toLocaleString('id-ID', {
@@ -1439,6 +1439,205 @@
                 second: '2-digit'
             });
             document.getElementById('currentTime').textContent = `⏰ ${timeString}`;
+            
+            // Auto-sync tanggal duty setiap menit
+            syncDateIfNeeded(now);
+        }
+
+        // Fungsi untuk auto-sync tanggal duty
+        let lastSyncedDate = null;
+        let userManuallyChangedDate = false;
+
+        function initializeDateSync() {
+            const tanggalDutyInput = document.getElementById('tanggalDuty');
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Set initial date
+            tanggalDutyInput.value = today;
+            lastSyncedDate = today;
+            
+            // Listen for manual changes
+            tanggalDutyInput.addEventListener('change', function() {
+                const selectedDate = this.value;
+                const currentDate = new Date().toISOString().split('T')[0];
+                
+                // Mark as manually changed jika user pilih tanggal yang bukan hari ini
+                userManuallyChangedDate = (selectedDate !== currentDate);
+                
+                console.log('Date manually changed:', userManuallyChangedDate);
+                
+                // Show info jika user pilih tanggal yang bukan hari ini
+                showDateChangeInfo(selectedDate, currentDate);
+            });
+            
+            // Listen for focus to show current sync status
+            tanggalDutyInput.addEventListener('focus', function() {
+                showDateSyncInfo();
+            });
+        }
+
+        function syncDateIfNeeded(currentDateTime) {
+            const tanggalDutyInput = document.getElementById('tanggalDuty');
+            const currentDate = currentDateTime.toISOString().split('T')[0];
+            
+            // Hanya auto-sync jika:
+            // 1. User belum manual mengubah tanggal, ATAU
+            // 2. Tanggal sekarang berbeda dari yang terakhir disync DAN tanggal duty masih tanggal kemarin
+            if (!userManuallyChangedDate || 
+                (lastSyncedDate !== currentDate && tanggalDutyInput.value < currentDate)) {
+                
+                if (tanggalDutyInput.value !== currentDate) {
+                    tanggalDutyInput.value = currentDate;
+                    lastSyncedDate = currentDate;
+                    
+                    // Reset manual change flag jika auto-sync ke hari ini
+                    if (!userManuallyChangedDate) {
+                        console.log('Auto-synced date to:', currentDate);
+                    }
+                }
+            }
+        }
+
+        function showDateChangeInfo(selectedDate, currentDate) {
+            const tanggalDutyInput = document.getElementById('tanggalDuty');
+            const existingInfo = document.querySelector('.date-sync-info');
+            
+            // Remove existing info
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+            
+            if (selectedDate !== currentDate) {
+                const info = document.createElement('div');
+                info.className = 'date-sync-info';
+                info.style.cssText = `
+                    background: #1e3a8a;
+                    color: #bfdbfe;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 0.8rem;
+                    margin-top: 8px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    border: 1px solid #3b82f6;
+                `;
+                
+                const selectedDateFormatted = new Date(selectedDate + 'T00:00:00').toLocaleDateString('id-ID');
+                const currentDateFormatted = new Date(currentDate + 'T00:00:00').toLocaleDateString('id-ID');
+                
+                info.innerHTML = `
+                    <span>📅</span>
+                    <span>Tanggal absensi: ${selectedDateFormatted}</span>
+                    <button onclick="resetToToday()" style="
+                        background: #3b82f6; 
+                        color: white; 
+                        border: none; 
+                        padding: 4px 8px; 
+                        border-radius: 4px; 
+                        font-size: 0.75rem; 
+                        cursor: pointer;
+                        margin-left: auto;
+                    ">Kembali ke Hari Ini (${currentDateFormatted})</button>
+                `;
+                
+                tanggalDutyInput.parentNode.appendChild(info);
+                
+                // Auto remove after 10 seconds
+                setTimeout(() => {
+                    if (info.parentNode) {
+                        info.remove();
+                    }
+                }, 10000);
+            }
+        }
+
+        function showDateSyncInfo() {
+            const tanggalDutyInput = document.getElementById('tanggalDuty');
+            const currentDate = new Date().toISOString().split('T')[0];
+            const selectedDate = tanggalDutyInput.value;
+            
+            // Show tooltip-like info
+            const existingTooltip = document.querySelector('.date-tooltip');
+            if (existingTooltip) {
+                existingTooltip.remove();
+            }
+            
+            const tooltip = document.createElement('div');
+            tooltip.className = 'date-tooltip';
+            tooltip.style.cssText = `
+                position: absolute;
+                background: #374151;
+                color: #f3f4f6;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 0.8rem;
+                top: 100%;
+                left: 0;
+                margin-top: 4px;
+                z-index: 1000;
+                border: 1px solid #4b5563;
+                white-space: nowrap;
+            `;
+            
+            if (selectedDate === currentDate) {
+                tooltip.textContent = '✅ Tanggal hari ini - akan auto-sync';
+            } else {
+                tooltip.textContent = '⚠️ Tanggal manual - tidak akan auto-sync';
+            }
+            
+            tanggalDutyInput.parentNode.style.position = 'relative';
+            tanggalDutyInput.parentNode.appendChild(tooltip);
+            
+            // Remove tooltip after 3 seconds or when input loses focus
+            const removeTooltip = () => {
+                if (tooltip.parentNode) {
+                    tooltip.remove();
+                }
+            };
+            
+            setTimeout(removeTooltip, 3000);
+            tanggalDutyInput.addEventListener('blur', removeTooltip, { once: true });
+        }
+
+        // Function to reset date to today (called from button)
+        function resetToToday() {
+            const tanggalDutyInput = document.getElementById('tanggalDuty');
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            tanggalDutyInput.value = currentDate;
+            userManuallyChangedDate = false;
+            lastSyncedDate = currentDate;
+            
+            // Remove info message
+            const existingInfo = document.querySelector('.date-sync-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+            
+            console.log('Date reset to today:', currentDate);
+            
+            // Show confirmation
+            const confirmation = document.createElement('div');
+            confirmation.style.cssText = `
+                background: #065f46;
+                color: #a7f3d0;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.8rem;
+                margin-top: 8px;
+                text-align: center;
+                border: 1px solid #059669;
+            `;
+            confirmation.textContent = '✅ Tanggal berhasil dikembalikan ke hari ini';
+            
+            tanggalDutyInput.parentNode.appendChild(confirmation);
+            
+            setTimeout(() => {
+                if (confirmation.parentNode) {
+                    confirmation.remove();
+                }
+            }, 3000);
         }
 
         // Initialize
@@ -1453,6 +1652,9 @@
         // Set current week in week filter
         const currentWeek = getWeekString(new Date());
         document.getElementById('weekFilter').value = currentWeek;
+        
+        // Auto-sync tanggal duty dengan waktu sistem
+        initializeDateSync();
 
         // FIXED: Load data dari Firebase dengan real-time listener yang diperbaiki
         function loadDataFromFirebase() {
@@ -1993,9 +2195,24 @@
         function clearForm() {
             document.getElementById('jamMasuk').value = '';
             document.getElementById('jamKeluar').value = '';
-            document.getElementById('tanggalDuty').value = new Date().toISOString().split('T')[0];
+            
+            // Reset ke tanggal hari ini dan reset status manual change
+            const currentDate = new Date().toISOString().split('T')[0];
+            document.getElementById('tanggalDuty').value = currentDate;
+            userManuallyChangedDate = false;
+            lastSyncedDate = currentDate;
+            
             document.getElementById('limitInfo').style.display = 'none';
+            
+            // Remove any date info messages
+            const existingInfo = document.querySelector('.date-sync-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
         }
+
+        // Make resetToToday available globally
+        window.resetToToday = resetToToday;
 
         // Initialize Firebase and load data
         document.addEventListener('DOMContentLoaded', function() {
