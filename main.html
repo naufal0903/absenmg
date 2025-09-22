@@ -541,6 +541,17 @@
             transform: scale(1);
         }
 
+        .download-section {
+            margin: 20px auto; /* Tengah secara horizontal */
+            text-align: center;
+            padding: 15px;
+            background: #252525;
+            border-radius: 8px;
+            border: 1px solid #333;
+            max-width: 400px; /* Lebar maksimum */
+            width: 90%; /* Lebar responsif */
+        }
+
         .popup-header {
             background: #252525;
             color: #ffffff;
@@ -963,6 +974,8 @@
             }
         }
     </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     
@@ -1077,7 +1090,7 @@
                     </div>
                 </div>
                 
-                <div id="weekSummary" class="week-summary">
+                 <div id="weekSummary" class="week-summary">
                     <h3>📊 Ringkasan Minggu</h3>
                     <div class="summary-grid">
                         <div class="summary-card">
@@ -1105,6 +1118,12 @@
                         <h4>📋 Detail per Karyawan</h4>
                         <div class="employee-list" id="employeeList"></div>
                     </div>
+                     <div class="download-section">
+                        <button class="btn btn-primary boss-only" onclick="downloadWeeklyXLSX()" style="margin-top: 10px;">
+                            📥 Download Laporan Mingguan (xlsx)
+                        </button>
+                    </div>
+                </div>
                 </div>
                 <div id="weekInfo" class="week-info" style="display: none;"></div>
                 <div id="searchInfo" class="search-result-info" style="display: none;"></div>
@@ -1402,6 +1421,218 @@
             }).catch((error) => {
                 console.error('Error signing out:', error);
             });
+        }
+
+        function createWorkbook(data, weekRange) {
+            // Buat workbook baru
+            const wb = XLSX.utils.book_new();
+            
+            // Data untuk sheet utama (ringkasan per karyawan)
+            const employeeData = [];
+            const summaryData = [];
+            
+            // Header untuk sheet ringkasan karyawan
+            employeeData.push(['LAPORAN ABSENSI MINGGUAN']);
+            employeeData.push(['Periode', `${weekRange.startFormatted} - ${weekRange.endFormatted}`]);
+            employeeData.push(['Dibuat pada', new Date().toLocaleDateString('id-ID')]);
+            employeeData.push([]); // Baris kosong
+            employeeData.push(['Nama', 'Jabatan', 'Total Jam', 'Total Shift', 'Rata-rata Jam/Hari']);
+            
+            // Hitung data per karyawan
+            const employeeStats = {};
+            let totalMenitAll = 0;
+            let totalShiftAll = 0;
+            
+            data.forEach(item => {
+                if (!employeeStats[item.nama]) {
+                    employeeStats[item.nama] = {
+                        jabatan: item.jabatan,
+                        totalMenit: 0,
+                        shift: 0
+                    };
+                }
+                
+                const menit = hitungTotalMenit(item.totalJam);
+                employeeStats[item.nama].totalMenit += menit;
+                employeeStats[item.nama].shift += 1;
+                
+                totalMenitAll += menit;
+                totalShiftAll += 1;
+            });
+            
+            // Isi data karyawan
+            Object.entries(employeeStats).forEach(([nama, data]) => {
+                const totalJam = Math.round(data.totalMenit / 60 * 10) / 10;
+                const avgHours = data.shift > 0 ? Math.round(data.totalMenit / data.shift / 60 * 10) / 10 : 0;
+                
+                employeeData.push([nama, data.jabatan, totalJam, data.shift, avgHours]);
+            });
+            
+            // Total keseluruhan
+            employeeData.push([]);
+            const totalJamAll = Math.round(totalMenitAll / 60 * 10) / 10;
+            const rataRataAll = totalShiftAll > 0 ? Math.round(totalMenitAll / totalShiftAll / 60 * 10) / 10 : 0;
+            const totalKaryawan = Object.keys(employeeStats).length;
+            
+            employeeData.push(['TOTAL', '', totalJamAll, totalShiftAll, rataRataAll]);
+            employeeData.push(['Jumlah Karyawan', '', totalKaryawan, '', '']);
+            
+            // Buat worksheet untuk ringkasan karyawan
+            const wsEmployee = XLSX.utils.aoa_to_sheet(employeeData);
+            
+            // Data untuk sheet detail absensi
+            const detailData = [];
+            detailData.push(['DETAIL ABSENSI MINGGUAN']);
+            detailData.push(['Periode', `${weekRange.startFormatted} - ${weekRange.endFormatted}`]);
+            detailData.push([]);
+            detailData.push(['No', 'Nama', 'Jabatan', 'Tanggal', 'Jam Masuk', 'Jam Keluar', 'Total Jam', 'Status']);
+            
+            // Isi data detail
+            data.forEach((item, index) => {
+                detailData.push([
+                    index + 1,
+                    item.nama,
+                    item.jabatan,
+                    new Date(item.tanggalDuty).toLocaleDateString('id-ID'),
+                    item.jamMasuk,
+                    item.jamKeluar,
+                    item.totalJam,
+                    item.status
+                ]);
+            });
+            
+            // Buat worksheet untuk detail absensi
+            const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+            
+            // Tambahkan worksheets ke workbook
+            XLSX.utils.book_append_sheet(wb, wsEmployee, 'Ringkasan Karyawan');
+            XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail Absensi');
+            
+            return wb;
+        }
+
+        // Fungsi untuk mendownload XLSX
+        function downloadWeeklyXLSX() {
+            if (!currentWeekFilter) {
+                showPopup('⚠️ Peringatan', 'Pilih minggu terlebih dahulu untuk mendownload laporan.', '⚠️', 'OK');
+                return;
+            }
+            
+            const weekRange = getWeekRange(currentWeekFilter);
+            if (!weekRange) return;
+            
+            // Filter data untuk minggu yang dipilih
+            const weeklyData = absensiData.filter(item => {
+                return item.tanggalDuty >= weekRange.start && item.tanggalDuty <= weekRange.end;
+            });
+            
+            if (weeklyData.length === 0) {
+                showPopup('⚠️ Peringatan', 'Tidak ada data untuk minggu yang dipilih.', '⚠️', 'OK');
+                return;
+            }
+            
+            try {
+                // Buat workbook
+                const wb = createWorkbook(weeklyData, weekRange);
+                
+                // Generate file XLSX
+                const fileName = `laporan-absensi-${weekRange.start}-${weekRange.end}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showPopup('✅ Berhasil', `Laporan mingguan berhasil didownload: ${fileName}`, '✅', 'OK');
+            } catch (error) {
+                console.error('Error creating XLSX:', error);
+                showPopup('❌ Error', 'Gagal membuat file laporan. Silakan coba lagi.', '❌', 'OK');
+            }
+        }
+
+        function convertToCSV(data, weekRange) {
+            if (!data.length) return '';
+            
+            // Header CSV
+            let csv = 'Laporan Absensi Mingguan\n';
+            csv += `Periode: ${weekRange.startFormatted} - ${weekRange.endFormatted}\n`;
+            csv += 'Dibuat pada: ' + new Date().toLocaleDateString('id-ID') + '\n\n';
+            
+            // Header kolom
+            csv += 'Nama,Jabatan,Total Jam,Total Shift,Rata-rata Jam/Hari\n';
+            
+            // Hitung data per karyawan
+            const employeeData = {};
+            
+            data.forEach(item => {
+                if (!employeeData[item.nama]) {
+                    employeeData[item.nama] = {
+                        jabatan: item.jabatan,
+                        totalMenit: 0,
+                        shift: 0
+                    };
+                }
+                
+                employeeData[item.nama].totalMenit += hitungTotalMenit(item.totalJam);
+                employeeData[item.nama].shift += 1;
+            });
+            
+            // Isi data
+            Object.entries(employeeData).forEach(([nama, data]) => {
+                const totalJam = Math.round(data.totalMenit / 60 * 10) / 10;
+                const avgHours = data.shift > 0 ? Math.round(data.totalMenit / data.shift / 60 * 10) / 10 : 0;
+                
+                csv += `"${nama}","${data.jabatan}",${totalJam},${data.shift},${avgHours}\n`;
+            });
+            
+            // Total keseluruhan
+            const totalMenit = Object.values(employeeData).reduce((sum, emp) => sum + emp.totalMenit, 0);
+            const totalJam = Math.round(totalMenit / 60 * 10) / 10;
+            const totalShift = data.length;
+            const totalKaryawan = Object.keys(employeeData).length;
+            const rataRata = totalShift > 0 ? Math.round(totalMenit / totalShift / 60 * 10) / 10 : 0;
+            
+            csv += '\n';
+            csv += `Total,,${totalJam},${totalShift},${rataRata}\n`;
+            csv += `Jumlah Karyawan,,${totalKaryawan},,\n`;
+            
+            return csv;
+        }
+
+        // Fungsi untuk mendownload CSV
+        function downloadWeeklyCSV() {
+            if (!currentWeekFilter) {
+                showPopup('⚠️ Peringatan', 'Pilih minggu terlebih dahulu untuk mendownload laporan.', '⚠️', 'OK');
+                return;
+            }
+            
+            const weekRange = getWeekRange(currentWeekFilter);
+            if (!weekRange) return;
+            
+            // Filter data untuk minggu yang dipilih
+            const weeklyData = absensiData.filter(item => {
+                return item.tanggalDuty >= weekRange.start && item.tanggalDuty <= weekRange.end;
+            });
+            
+            if (weeklyData.length === 0) {
+                showPopup('⚠️ Peringatan', 'Tidak ada data untuk minggu yang dipilih.', '⚠️', 'OK');
+                return;
+            }
+            
+            // Konversi ke CSV
+            const csvContent = convertToCSV(weeklyData, weekRange);
+            
+            // Buat file dan download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const fileName = `laporan-absensi-${weekRange.start}-${weekRange.end}.csv`;
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showPopup('✅ Berhasil', `Laporan mingguan berhasil didownload: ${fileName}`, '✅', 'OK');
         }
 
         // Update current time
