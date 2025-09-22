@@ -1325,10 +1325,12 @@
         // Weekly Statistics Functions
         function getWeekDates(offset = 0) {
             const now = new Date();
+            // Normalisasi ke waktu lokal tanpa jam
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             
             // Calculate the start of the current week (Monday)
             const dayOfWeek = today.getDay();
+            // Adjust for Monday as first day (0 = Sunday, 1 = Monday, etc.)
             const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
             const monday = new Date(today);
             monday.setDate(today.getDate() + mondayOffset + (offset * 7));
@@ -1364,16 +1366,21 @@
             const weekDates = getWeekDates(currentWeekOffset);
             const weekRange = formatWeekRange(weekDates);
             const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalisasi hari ini tanpa jam
             
             // Update week display
             document.getElementById('currentWeekDisplay').textContent = weekRange;
             
             // Filter data for current week
             const weeklyData = attendanceData.filter(item => {
+                // Pastikan format tanggal sesuai
                 const itemDate = new Date(item.tanggalDuty);
-                return weekDates.some(weekDate => 
-                    weekDate.toISOString().split('T')[0] === itemDate.toISOString().split('T')[0]
-                );
+                itemDate.setHours(0, 0, 0, 0); // Normalisasi tanpa jam
+                
+                return weekDates.some(weekDate => {
+                    weekDate.setHours(0, 0, 0, 0);
+                    return weekDate.getTime() === itemDate.getTime();
+                });
             });
             
             // Calculate weekly totals
@@ -1398,11 +1405,16 @@
             const container = document.getElementById('weeklyDaysContainer');
             container.innerHTML = '';
             
-            const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+            const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']; // Perbaiki "Jun" menjadi "Jum"
             
             weekDates.forEach((date, index) => {
                 const dateStr = date.toISOString().split('T')[0];
-                const dayData = weeklyData.filter(item => item.tanggalDuty === dateStr);
+                const dayData = weeklyData.filter(item => {
+                    const itemDate = new Date(item.tanggalDuty);
+                    itemDate.setHours(0, 0, 0, 0);
+                    date.setHours(0, 0, 0, 0);
+                    return itemDate.getTime() === date.getTime();
+                });
                 
                 let totalDayMinutes = 0;
                 dayData.forEach(item => {
@@ -1410,7 +1422,10 @@
                 });
                 const dayHours = Math.round(totalDayMinutes / 60 * 10) / 10;
                 
-                const isToday = date.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+                // Bandingkan tanggal tanpa jam
+                const todayNormalized = new Date(today);
+                todayNormalized.setHours(0, 0, 0, 0);
+                const isToday = date.getTime() === todayNormalized.getTime();
                 const hasData = dayData.length > 0;
                 
                 const dayCard = document.createElement('div');

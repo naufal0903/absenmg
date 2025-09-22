@@ -1051,13 +1051,17 @@
                 </div>
                 
                 <!-- Personal Attendance Cards for Non-Admin -->
-                <div id="personalAttendanceSection" class="personal-attendance-section">
+                <div id="personalAttendanceSection" class="personal-attendance-section" style="display: none;">
                     <h3>📋 Absensi Hari Ini</h3>
                     <div class="attendance-cards-container" id="attendanceCardsContainer">
                         <!-- Cards akan diisi oleh JavaScript -->
                     </div>
                     
                     <div class="personal-stats">
+                        <div class="personal-stat-card">
+                            <div class="personal-stat-value" id="personalTotalAttendance">0</div>
+                            <div class="personal-stat-label">Total Kehadiran</div>
+                        </div>
                         <div class="personal-stat-card">
                             <div class="personal-stat-value" id="personalTotalHours">0</div>
                             <div class="personal-stat-label">Total Jam</div>
@@ -1183,7 +1187,7 @@
             'senior': 'Senior',
             'mechanic': 'Mechanic',
             'trainee': 'Trainee',
-            'staff': 'Staff'
+            'staff': 'Staff' // Default untuk staff
         };
 
         // Cek status login dan load user data
@@ -1202,6 +1206,8 @@
                 if (userDoc.exists) {
                     const userProfile = userDoc.data();
                     currentUser = { ...currentUser, ...userProfile };
+                    
+                    // Update localStorage dengan data terbaru
                     localStorage.setItem('user', JSON.stringify(currentUser));
                 }
             } catch (error) {
@@ -1262,8 +1268,10 @@
             });
             
             // Hanya Boss yang bisa melihat semua data dalam tabel
+            // Semua role lain (termasuk Manajer) akan melihat card personal
             if (role !== 'boss') {
                 container.classList.add('non-admin-view');
+                // Hide search and filter controls for non-boss
                 document.querySelector('.data-controls').style.display = 'none';
             } else {
                 container.classList.remove('non-admin-view');
@@ -1271,47 +1279,17 @@
             }
         }
 
-        // FIXED: Fungsi untuk update cards dengan logic yang diperbaiki
         function updatePersonalAttendanceCards(userData, personalData) {
             const container = document.getElementById('attendanceCardsContainer');
             const today = new Date().toISOString().split('T')[0];
             
-            console.log('=== UPDATING ATTENDANCE CARDS ===');
-            console.log('Target date (today):', today);
-            console.log('Personal data received:', personalData.length, 'records');
-            console.log('User data:', userData);
+            console.log('Updating cards for date:', today);
+            console.log('Personal data:', personalData);
             
-            // Debug: tampilkan semua data personal
-            personalData.forEach((item, index) => {
-                console.log(`Record ${index + 1}:`, {
-                    nama: item.nama,
-                    tanggal: item.tanggalDuty,
-                    jamMasuk: item.jamMasuk,
-                    jamKeluar: item.jamKeluar,
-                    totalJam: item.totalJam,
-                    userId: item.userId,
-                    userEmail: item.userEmail
-                });
-            });
+            // Filter data untuk hari ini saja
+            const todayAttendance = personalData.filter(item => item.tanggalDuty === today);
+            console.log('Today attendance:', todayAttendance);
             
-            // Filter data untuk hari ini saja - SORTING by waktuInput untuk urutan yang benar
-            const todayAttendance = personalData
-                .filter(item => {
-                    const itemDate = item.tanggalDuty;
-                    const matches = itemDate === today;
-                    if (matches) {
-                        console.log('✓ Found today attendance:', item);
-                    }
-                    return matches;
-                })
-                .sort((a, b) => {
-                    // Sort by waktuInput untuk memastikan urutan chronological
-                    return new Date(a.waktuInput) - new Date(b.waktuInput);
-                });
-            
-            console.log(`Found ${todayAttendance.length} attendance records for today (sorted)`);
-            
-            // Clear container
             container.innerHTML = '';
             
             // Buat 3 cards untuk maksimal 3 absensi per hari
@@ -1319,16 +1297,18 @@
                 const card = document.createElement('div');
                 const attendance = todayAttendance[i - 1]; // Data untuk card ini (index 0-based)
                 
+                console.log(`Creating card ${i}, attendance data:`, attendance);
+                
                 if (attendance) {
-                    console.log(`Creating filled card ${i} with data:`, attendance);
-                    
+                    // Card dengan data - PASTIKAN semua field ada
                     card.className = 'attendance-card filled';
                     
-                    // Pastikan semua data ada dan valid
-                    const jamMasuk = attendance.jamMasuk && attendance.jamMasuk.trim() ? attendance.jamMasuk : 'N/A';
-                    const jamKeluar = attendance.jamKeluar && attendance.jamKeluar.trim() ? attendance.jamKeluar : 'N/A';
-                    const totalJam = attendance.totalJam && attendance.totalJam.trim() ? attendance.totalJam : 'N/A';
+                    const jamMasuk = attendance.jamMasuk || 'N/A';
+                    const jamKeluar = attendance.jamKeluar || 'N/A';
+                    const totalJam = attendance.totalJam || 'N/A';
                     const tanggal = attendance.tanggalDuty || today;
+                    
+                    console.log(`Card ${i} data:`, {jamMasuk, jamKeluar, totalJam, tanggal});
                     
                     card.innerHTML = `
                         <div class="card-header">
@@ -1351,8 +1331,8 @@
                         </div>
                     `;
                 } else {
-                    console.log(`Creating empty card ${i}`);
-                    
+                    // Card kosong
+                    console.log(`Card ${i} is empty`);
                     card.className = 'attendance-card empty';
                     card.innerHTML = `
                         <div class="card-header">
@@ -1371,9 +1351,10 @@
                 container.appendChild(card);
             }
             
-            console.log(`Successfully created ${container.children.length} cards`);
-            console.log('===================================');
+            console.log(`Created ${container.children.length} cards total`);
+            console.log('=====================================');
         }
+
 
         function updatePersonalStats(personalData) {
             console.log('Updating personal stats with:', personalData.length, 'records');
@@ -1400,18 +1381,16 @@
                 return itemDate >= startOfWeek;
             }).length;
             
-            // Update UI dengan error handling
-            const elements = {
-                totalAttendance: document.getElementById('personalTotalAttendance'),
-                totalHours: document.getElementById('personalTotalHours'),
-                avgHours: document.getElementById('personalAvgHours'),
-                thisWeek: document.getElementById('personalThisWeek')
-            };
+            // Update UI
+            const totalEl = document.getElementById('personalTotalAttendance');
+            const hoursEl = document.getElementById('personalTotalHours');
+            const avgEl = document.getElementById('personalAvgHours');
+            const weekEl = document.getElementById('personalThisWeek');
             
-            if (elements.totalAttendance) elements.totalAttendance.textContent = totalAttendance;
-            if (elements.totalHours) elements.totalHours.textContent = totalHours;
-            if (elements.avgHours) elements.avgHours.textContent = avgHours;
-            if (elements.thisWeek) elements.thisWeek.textContent = thisWeek;
+            if (totalEl) totalEl.textContent = totalAttendance;
+            if (hoursEl) hoursEl.textContent = totalHours;
+            if (avgEl) avgEl.textContent = avgHours;
+            if (weekEl) weekEl.textContent = thisWeek;
             
             console.log('Stats updated:', {totalAttendance, totalHours, avgHours, thisWeek});
         }
@@ -1425,7 +1404,7 @@
             });
         }
 
-        // Update current time dan sinkronisasi tanggal duty
+        // Update current time
         function updateCurrentTime() {
             const now = new Date();
             const timeString = now.toLocaleString('id-ID', {
@@ -1439,205 +1418,6 @@
                 second: '2-digit'
             });
             document.getElementById('currentTime').textContent = `⏰ ${timeString}`;
-            
-            // Auto-sync tanggal duty setiap menit
-            syncDateIfNeeded(now);
-        }
-
-        // Fungsi untuk auto-sync tanggal duty
-        let lastSyncedDate = null;
-        let userManuallyChangedDate = false;
-
-        function initializeDateSync() {
-            const tanggalDutyInput = document.getElementById('tanggalDuty');
-            const today = new Date().toISOString().split('T')[0];
-            
-            // Set initial date
-            tanggalDutyInput.value = today;
-            lastSyncedDate = today;
-            
-            // Listen for manual changes
-            tanggalDutyInput.addEventListener('change', function() {
-                const selectedDate = this.value;
-                const currentDate = new Date().toISOString().split('T')[0];
-                
-                // Mark as manually changed jika user pilih tanggal yang bukan hari ini
-                userManuallyChangedDate = (selectedDate !== currentDate);
-                
-                console.log('Date manually changed:', userManuallyChangedDate);
-                
-                // Show info jika user pilih tanggal yang bukan hari ini
-                showDateChangeInfo(selectedDate, currentDate);
-            });
-            
-            // Listen for focus to show current sync status
-            tanggalDutyInput.addEventListener('focus', function() {
-                showDateSyncInfo();
-            });
-        }
-
-        function syncDateIfNeeded(currentDateTime) {
-            const tanggalDutyInput = document.getElementById('tanggalDuty');
-            const currentDate = currentDateTime.toISOString().split('T')[0];
-            
-            // Hanya auto-sync jika:
-            // 1. User belum manual mengubah tanggal, ATAU
-            // 2. Tanggal sekarang berbeda dari yang terakhir disync DAN tanggal duty masih tanggal kemarin
-            if (!userManuallyChangedDate || 
-                (lastSyncedDate !== currentDate && tanggalDutyInput.value < currentDate)) {
-                
-                if (tanggalDutyInput.value !== currentDate) {
-                    tanggalDutyInput.value = currentDate;
-                    lastSyncedDate = currentDate;
-                    
-                    // Reset manual change flag jika auto-sync ke hari ini
-                    if (!userManuallyChangedDate) {
-                        console.log('Auto-synced date to:', currentDate);
-                    }
-                }
-            }
-        }
-
-        function showDateChangeInfo(selectedDate, currentDate) {
-            const tanggalDutyInput = document.getElementById('tanggalDuty');
-            const existingInfo = document.querySelector('.date-sync-info');
-            
-            // Remove existing info
-            if (existingInfo) {
-                existingInfo.remove();
-            }
-            
-            if (selectedDate !== currentDate) {
-                const info = document.createElement('div');
-                info.className = 'date-sync-info';
-                info.style.cssText = `
-                    background: #1e3a8a;
-                    color: #bfdbfe;
-                    padding: 8px 12px;
-                    border-radius: 6px;
-                    font-size: 0.8rem;
-                    margin-top: 8px;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    border: 1px solid #3b82f6;
-                `;
-                
-                const selectedDateFormatted = new Date(selectedDate + 'T00:00:00').toLocaleDateString('id-ID');
-                const currentDateFormatted = new Date(currentDate + 'T00:00:00').toLocaleDateString('id-ID');
-                
-                info.innerHTML = `
-                    <span>📅</span>
-                    <span>Tanggal absensi: ${selectedDateFormatted}</span>
-                    <button onclick="resetToToday()" style="
-                        background: #3b82f6; 
-                        color: white; 
-                        border: none; 
-                        padding: 4px 8px; 
-                        border-radius: 4px; 
-                        font-size: 0.75rem; 
-                        cursor: pointer;
-                        margin-left: auto;
-                    ">Kembali ke Hari Ini (${currentDateFormatted})</button>
-                `;
-                
-                tanggalDutyInput.parentNode.appendChild(info);
-                
-                // Auto remove after 10 seconds
-                setTimeout(() => {
-                    if (info.parentNode) {
-                        info.remove();
-                    }
-                }, 10000);
-            }
-        }
-
-        function showDateSyncInfo() {
-            const tanggalDutyInput = document.getElementById('tanggalDuty');
-            const currentDate = new Date().toISOString().split('T')[0];
-            const selectedDate = tanggalDutyInput.value;
-            
-            // Show tooltip-like info
-            const existingTooltip = document.querySelector('.date-tooltip');
-            if (existingTooltip) {
-                existingTooltip.remove();
-            }
-            
-            const tooltip = document.createElement('div');
-            tooltip.className = 'date-tooltip';
-            tooltip.style.cssText = `
-                position: absolute;
-                background: #374151;
-                color: #f3f4f6;
-                padding: 8px 12px;
-                border-radius: 6px;
-                font-size: 0.8rem;
-                top: 100%;
-                left: 0;
-                margin-top: 4px;
-                z-index: 1000;
-                border: 1px solid #4b5563;
-                white-space: nowrap;
-            `;
-            
-            if (selectedDate === currentDate) {
-                tooltip.textContent = '✅ Tanggal hari ini - akan auto-sync';
-            } else {
-                tooltip.textContent = '⚠️ Tanggal manual - tidak akan auto-sync';
-            }
-            
-            tanggalDutyInput.parentNode.style.position = 'relative';
-            tanggalDutyInput.parentNode.appendChild(tooltip);
-            
-            // Remove tooltip after 3 seconds or when input loses focus
-            const removeTooltip = () => {
-                if (tooltip.parentNode) {
-                    tooltip.remove();
-                }
-            };
-            
-            setTimeout(removeTooltip, 3000);
-            tanggalDutyInput.addEventListener('blur', removeTooltip, { once: true });
-        }
-
-        // Function to reset date to today (called from button)
-        function resetToToday() {
-            const tanggalDutyInput = document.getElementById('tanggalDuty');
-            const currentDate = new Date().toISOString().split('T')[0];
-            
-            tanggalDutyInput.value = currentDate;
-            userManuallyChangedDate = false;
-            lastSyncedDate = currentDate;
-            
-            // Remove info message
-            const existingInfo = document.querySelector('.date-sync-info');
-            if (existingInfo) {
-                existingInfo.remove();
-            }
-            
-            console.log('Date reset to today:', currentDate);
-            
-            // Show confirmation
-            const confirmation = document.createElement('div');
-            confirmation.style.cssText = `
-                background: #065f46;
-                color: #a7f3d0;
-                padding: 6px 12px;
-                border-radius: 6px;
-                font-size: 0.8rem;
-                margin-top: 8px;
-                text-align: center;
-                border: 1px solid #059669;
-            `;
-            confirmation.textContent = '✅ Tanggal berhasil dikembalikan ke hari ini';
-            
-            tanggalDutyInput.parentNode.appendChild(confirmation);
-            
-            setTimeout(() => {
-                if (confirmation.parentNode) {
-                    confirmation.remove();
-                }
-            }, 3000);
         }
 
         // Initialize
@@ -1652,38 +1432,27 @@
         // Set current week in week filter
         const currentWeek = getWeekString(new Date());
         document.getElementById('weekFilter').value = currentWeek;
-        
-        // Auto-sync tanggal duty dengan waktu sistem
-        initializeDateSync();
 
-        // FIXED: Load data dari Firebase dengan real-time listener yang diperbaiki
+        // Load data from Firebase
         function loadDataFromFirebase() {
             document.getElementById('loadingData').style.display = 'block';
             document.getElementById('emptyState').style.display = 'none';
             
+            // Jika sudah ada listener, hapus dulu
             if (unsubscribe) {
                 unsubscribe();
             }
             
-            console.log('Setting up Firebase listener...');
-            
+            // Setup realtime listener
             unsubscribe = db.collection("absensi")
                 .orderBy("waktuInput", "desc")
                 .onSnapshot((querySnapshot) => {
-                    console.log('Firebase data updated, processing...');
-                    
                     absensiData = [];
                     querySnapshot.forEach((doc) => {
-                        const data = doc.data();
-                        absensiData.push({ 
-                            id: doc.id, 
-                            ...data 
-                        });
+                        absensiData.push({ id: doc.id, ...doc.data() });
                     });
                     
-                    console.log('Total absensi data loaded:', absensiData.length);
                     document.getElementById('loadingData').style.display = 'none';
-                    
                     filteredData = [...absensiData];
                     applyFilters();
                 }, (error) => {
@@ -1697,7 +1466,6 @@
         async function saveToFirebase(absensi) {
             try {
                 const docRef = await db.collection("absensi").add(absensi);
-                console.log('Data saved to Firebase with ID:', docRef.id);
                 return docRef.id;
             } catch (error) {
                 console.error("Error adding document: ", error);
@@ -1747,6 +1515,7 @@
         }
 
         function viewProfile() {
+            // Redirect ke halaman profile
             window.location.href = 'profile.html';
         }
 
@@ -1770,6 +1539,7 @@
             const days = (parseInt(week) - 1) * 7;
             const weekStart = new Date(firstDayOfYear.getTime() + days * 24 * 60 * 60 * 1000);
             
+            // Adjust to Monday
             const dayOfWeek = weekStart.getDay();
             const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
             weekStart.setDate(weekStart.getDate() + mondayOffset);
@@ -1788,6 +1558,7 @@
         function hitungJamDuty(jamMasuk, jamKeluar) {
             if (!jamMasuk || !jamKeluar) return '-';
             
+            // Parse jam dengan format HH:MM atau H:MM
             const parseJam = (jam) => {
                 const parts = jam.split(':');
                 if (parts.length !== 2) return null;
@@ -1802,11 +1573,13 @@
             
             if (!masuk || !keluar) return 'Format jam salah';
             
+            // Convert to minutes for calculation
             const masukMinutes = masuk.hours * 60 + masuk.minutes;
             let keluarMinutes = keluar.hours * 60 + keluar.minutes;
             
+            // Handle overnight shifts
             if (keluarMinutes < masukMinutes) {
-                keluarMinutes += 24 * 60;
+                keluarMinutes += 24 * 60; // Add 24 hours
             }
             
             const diffMinutes = keluarMinutes - masukMinutes;
@@ -1830,52 +1603,40 @@
             return 0;
         }
 
-        // FIXED: Fungsi cek batas harian yang diperbaiki
-        function cekBatasHarian(nama, tanggal) {
-            console.log('Checking daily limit for:', nama, 'on', tanggal);
-            
-            const jumlahHariIni = absensiData.filter(item => {
-                const nameMatch = item.nama === nama;
-                const dateMatch = item.tanggalDuty === tanggal;
-                const userMatch = item.userId === currentUser.uid; // Tambahan filter untuk keamanan
-                
-                return nameMatch && dateMatch && userMatch;
-            }).length;
-            
-            console.log('Current attendance count for today:', jumlahHariIni);
-            
-            const canAdd = jumlahHariIni < 3;
-            if (!canAdd) {
-                console.log('Daily limit reached (3/3)');
-            }
-            
-            return canAdd;
+        function formatJamMenit(totalMenit) {
+            const hours = Math.floor(totalMenit / 60);
+            const minutes = totalMenit % 60;
+            return `${hours} jam ${minutes} menit`;
         }
 
-        // FIXED: Fungsi tambah absensi yang diperbaiki
-        async function tambahAbsensi() {
-            console.log('=== ADDING ATTENDANCE ===');
+        // Fungsi untuk memeriksa batasan 3 data per hari
+        function cekBatasHarian(nama, tanggal) {
+            const jumlahHariIni = absensiData.filter(item => 
+                item.nama === nama && item.tanggalDuty === tanggal
+            ).length;
             
+            return jumlahHariIni < 3;
+        }
+
+        async function tambahAbsensi() {
             const nama = document.getElementById('nama').value.trim();
             const jabatan = document.getElementById('jabatan').value;
             const tanggalDuty = document.getElementById('tanggalDuty').value;
-            const jamMasuk = document.getElementById('jamMasuk').value.trim();
-            const jamKeluar = document.getElementById('jamKeluar').value.trim();
-
-            console.log('Form data:', { nama, jabatan, tanggalDuty, jamMasuk, jamKeluar });
+            const jamMasuk = document.getElementById('jamMasuk').value;
+            const jamKeluar = document.getElementById('jamKeluar').value;
 
             if (!nama || !jabatan || !tanggalDuty || !jamMasuk || !jamKeluar) {
                 showPopup('⚠️ Peringatan', 'Mohon lengkapi semua field!', '⚠️', 'OK');
                 return;
             }
 
+            // Cek apakah sudah mencapai batas 3 data per hari
             if (!cekBatasHarian(nama, tanggalDuty)) {
                 showPopup('⛔ Batas Tercapai', 'Batas maksimal 3 kali absensi per hari telah tercapai untuk karyawan ini.', '⛔', 'Mengerti');
                 return;
             }
 
             const totalJam = hitungJamDuty(jamMasuk, jamKeluar);
-            console.log('Calculated total hours:', totalJam);
             
             if (totalJam === 'Format jam salah') {
                 showPopup('⚠️ Format Salah', 'Format jam salah! Gunakan format HH:MM (contoh: 08:00)', '⚠️', 'Mengerti');
@@ -1883,31 +1644,25 @@
             }
 
             const status = 'Selesai';
-            const waktuInput = new Date().toISOString();
 
             const absensi = {
-                nama: nama,
-                jabatan: jabatan,
-                tanggalDuty: tanggalDuty,
-                jamMasuk: jamMasuk,
-                jamKeluar: jamKeluar,
-                totalJam: totalJam,
-                status: status,
-                userId: currentUser.uid,
-                userEmail: currentUser.email,
-                waktuInput: waktuInput
+                nama,
+                jabatan,
+                tanggalDuty,
+                jamMasuk,
+                jamKeluar,
+                totalJam,
+                status,
+                userId: currentUser.uid, // Tambahkan user ID untuk tracking
+                userEmail: currentUser.email, // TAMBAHAN: Untuk backup matching
+                waktuInput: new Date().toISOString()
             };
-
-            console.log('Data to save:', absensi);
 
             try {
                 document.getElementById('loadingData').style.display = 'block';
-                const docId = await saveToFirebase(absensi);
-                console.log('Data saved successfully with ID:', docId);
-                
+                await saveToFirebase(absensi);
                 clearForm();
                 showPopup('✅ Berhasil', 'Data absensi berhasil disimpan!', '✅', 'OK');
-                
             } catch (error) {
                 console.error("Error saving data: ", error);
                 showPopup('❌ Error', 'Gagal menyimpan data absensi.', '❌', 'OK');
@@ -1916,7 +1671,25 @@
             }
         }
 
+        function checkStoredData() {
+            console.log('=== CHECKING STORED DATA ===');
+            console.log('Current User:', currentUser);
+            console.log('All Absensi Data:');
+            absensiData.forEach((item, index) => {
+                console.log(`${index + 1}.`, {
+                    nama: item.nama,
+                    userId: item.userId,
+                    userEmail: item.userEmail,
+                    tanggal: item.tanggalDuty,
+                    jamMasuk: item.jamMasuk,
+                    jamKeluar: item.jamKeluar
+                });
+            });
+            console.log('=============================');
+        }
+
         function showResetConfirmation() {
+            // Hanya boss yang bisa menghapus semua data
             if (currentUser.role !== 'boss') {
                 showPopup('⛔ Akses Ditolak', 'Hanya Boss/Admin yang dapat menghapus semua data.', '⛔', 'Mengerti');
                 return;
@@ -1960,7 +1733,6 @@
             applyFilters();
         }
 
-        // FIXED: Fungsi applyFilters yang diperbaiki dengan logic matching yang lebih robust
         function applyFilters() {
             const searchTerm = document.getElementById('searchNama').value.toLowerCase().trim();
             const weekInfo = document.getElementById('weekInfo');
@@ -1970,68 +1742,56 @@
             
             let tempData = [...absensiData];
             
-            console.log('=== APPLYING FILTERS ===');
+            console.log('=== DEBUGGING INFO ===');
             console.log('Current user:', currentUser);
-            console.log('User role:', currentUser.role);
-            console.log('Total absensi data:', absensiData.length);
+            console.log('Current user role:', currentUser.role);
+            console.log('Current user email:', currentUser.email);
+            console.log('Total data available:', absensiData.length);
+            console.log('All attendance data:', absensiData);
             
-            // Untuk non-boss users (semua role selain boss)
+            // Hanya Boss yang melihat semua data dalam tabel
+            // Semua role lain (termasuk Manajer) melihat card personal
             if (currentUser.role !== 'boss') {
+                // Coba berbagai variasi nama untuk matching
                 const userEmail = currentUser.email;
                 const userDisplayName = currentUser.displayName;
                 const emailPrefix = userEmail.split('@')[0];
                 
-                console.log('Filtering for non-boss user:');
+                console.log('Non-boss user detected. Trying to match with:');
                 console.log('- Email:', userEmail);
                 console.log('- Display Name:', userDisplayName);
                 console.log('- Email Prefix:', emailPrefix);
-                console.log('- User ID:', currentUser.uid);
                 
-                // Filter data dengan matching yang lebih akurat - PERBAIKAN UTAMA
+                // Filter data dengan berbagai kemungkinan matching
                 tempData = absensiData.filter(item => {
-                    // Method 1: Match berdasarkan userId (paling akurat)
-                    if (item.userId && item.userId === currentUser.uid) {
-                        return true;
+                    const matches = [
+                        item.nama === userDisplayName,
+                        item.nama === emailPrefix,
+                        item.nama === userEmail,
+                        item.userId === currentUser.uid,
+                        // Case insensitive matching
+                        item.nama.toLowerCase() === (userDisplayName || '').toLowerCase(),
+                        item.nama.toLowerCase() === emailPrefix.toLowerCase(),
+                        // Partial matching for names with dots
+                        item.nama.replace(/\./g, '') === emailPrefix.replace(/\./g, ''),
+                    ];
+                    
+                    const isMatch = matches.some(m => m === true);
+                    if (isMatch) {
+                        console.log('Found matching record:', item);
                     }
-                    
-                    // Method 2: Match berdasarkan email
-                    if (item.userEmail && item.userEmail === currentUser.email) {
-                        return true;
-                    }
-                    
-                    // Method 3: Match berdasarkan nama yang tersimpan
-                    const itemName = (item.nama || '').trim().toLowerCase();
-                    const displayName = (userDisplayName || '').trim().toLowerCase();
-                    const emailPrefixLower = emailPrefix.trim().toLowerCase();
-                    const emailLower = userEmail.trim().toLowerCase();
-                    
-                    // Exact matches
-                    if (itemName === displayName && displayName !== '') return true;
-                    if (itemName === emailPrefixLower && emailPrefixLower !== '') return true;
-                    if (itemName === emailLower && emailLower !== '') return true;
-                    
-                    // Clean matches (remove dots, dashes, spaces)
-                    const cleanItemName = itemName.replace(/[.\-_\s]/g, '');
-                    const cleanDisplayName = displayName.replace(/[.\-_\s]/g, '');
-                    const cleanEmailPrefix = emailPrefixLower.replace(/[.\-_\s]/g, '');
-                    
-                    if (cleanItemName === cleanDisplayName && cleanDisplayName !== '') return true;
-                    if (cleanItemName === cleanEmailPrefix && cleanEmailPrefix !== '') return true;
-                    
-                    return false;
+                    return isMatch;
                 });
                 
-                console.log(`Found ${tempData.length} matching records for user`);
-                tempData.forEach((item, idx) => {
-                    console.log(`  ${idx + 1}. ${item.nama} - ${item.tanggalDuty} (${item.jamMasuk}-${item.jamKeluar})`);
-                });
+                console.log('Personal data found:', tempData.length);
+                console.log('Filtered personal data:', tempData);
                 
-                // Pastikan personal section ditampilkan
+                // Pastikan personal section ada dan ditampilkan
                 if (personalSection) {
                     personalSection.style.display = 'block';
                     personalSection.classList.add('show');
+                    console.log('Personal section displayed');
                     
-                    // Update cards dengan data yang sudah difilter
                     updatePersonalAttendanceCards(currentUser, tempData);
                     updatePersonalStats(tempData);
                 } else {
@@ -2044,6 +1804,7 @@
                 if (loadingEl) loadingEl.style.display = 'none';
                 if (emptyEl) emptyEl.style.display = 'none';
                 
+                console.log('Showing personal card view for:', currentUser.role);
                 return; // Skip table update untuk non-boss
             }
             
@@ -2065,6 +1826,7 @@
                     weekInfo.innerHTML = `📅 Menampilkan data minggu: ${weekRange.startFormatted} - ${weekRange.endFormatted}`;
                     weekInfo.style.display = 'block';
                     
+                    // Show week summary
                     updateWeekSummary(tempData, weekRange);
                     weekSummary.style.display = 'block';
                 } else {
@@ -2090,6 +1852,7 @@
                     searchInfo.style.display = 'block';
                 }
                 
+                // Update week summary with search results
                 if (currentWeekFilter) {
                     const weekRange = getWeekRange(currentWeekFilter);
                     updateWeekSummary(tempData, weekRange);
@@ -2103,6 +1866,7 @@
         }
 
         function updateWeekSummary(data, weekRange) {
+            // Calculate totals
             let totalMinutes = 0;
             const employeeHours = {};
             
@@ -2126,11 +1890,13 @@
             const rataRataHari = totalKehadiran > 0 ? Math.round(totalMinutes / totalKehadiran / 60 * 10) / 10 : 0;
             const karyawanAktif = Object.keys(employeeHours).length;
             
+            // Update summary cards
             document.getElementById('totalKehadiran').textContent = totalKehadiran;
             document.getElementById('totalJamKerja').textContent = totalJamKerja;
             document.getElementById('rataRataHari').textContent = rataRataHari;
             document.getElementById('karyawanAktif').textContent = karyawanAktif;
             
+            // Update employee list
             const employeeList = document.getElementById('employeeList');
             employeeList.innerHTML = '';
             
@@ -2193,36 +1959,17 @@
         }
 
         function clearForm() {
+            // Nama dan jabatan tidak perlu di-reset karena auto-fill
             document.getElementById('jamMasuk').value = '';
             document.getElementById('jamKeluar').value = '';
-            
-            // Reset ke tanggal hari ini dan reset status manual change
-            const currentDate = new Date().toISOString().split('T')[0];
-            document.getElementById('tanggalDuty').value = currentDate;
-            userManuallyChangedDate = false;
-            lastSyncedDate = currentDate;
-            
+            document.getElementById('tanggalDuty').value = new Date().toISOString().split('T')[0];
             document.getElementById('limitInfo').style.display = 'none';
-            
-            // Remove any date info messages
-            const existingInfo = document.querySelector('.date-sync-info');
-            if (existingInfo) {
-                existingInfo.remove();
-            }
         }
-
-        // Make resetToToday available globally
-        window.resetToToday = resetToToday;
 
         // Initialize Firebase and load data
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing...');
             loadDataFromFirebase();
         });
     </script>
 </body>
-</html>Attendance">0</div>
-                            <div class="personal-stat-label">Total Kehadiran</div>
-                        </div>
-                        <div class="personal-stat-card">
-                            <div class="personal-stat-value" id="personalTotal
+</html>
