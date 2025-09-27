@@ -178,6 +178,39 @@
             flex-wrap: wrap;
         }
 
+        /* Style untuk tombol hapus di tabel */
+        .table-delete-btn {
+            background: #cf6679;
+            color: #121212;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+        }
+
+        .table-delete-btn:hover {
+            background: #b00020;
+            color: #ffffff;
+            transform: scale(1.1);
+        }
+
+        /* Sembunyikan kolom aksi untuk non-boss */
+        .boss-only {
+            display: none;
+        }
+
+        /* Tampilkan kolom aksi hanya untuk boss */
+        .container:not(.non-admin-view) .boss-only {
+            display: table-cell;
+        }
+
+        /* Untuk tombol refresh */
+        .container:not(.non-admin-view) .refresh-btn.boss-only {
+            display: flex;
+        }
+
         .btn {
             padding: 12px 20px;
             border: none;
@@ -359,6 +392,30 @@
         .summary-card .label {
             font-size: 0.75rem;
             color: #888;
+        }
+
+        .refresh-btn {
+            background: #bb86fc;
+            color: #121212;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .refresh-btn:hover {
+            background: #9a67ea;
+            transform: scale(1.05);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.95);
         }
 
         .employee-summary {
@@ -848,6 +905,28 @@
             display: none;
         }
 
+        .delete-btn {
+            background: #cf6679;
+            color: #121212;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .delete-btn:hover {
+            background: #b00020;
+            color: #ffffff;
+        }
+
+        .attendance-card.empty .delete-btn {
+            display: none;
+        }
+
         /* Role-specific styles */
         .boss-only {
             display: none;
@@ -916,9 +995,36 @@
                 transition: all 0.2s ease;
             }
 
+            /* Animation for refresh */
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .refresh-btn.spinning {
+                animation: spin 1s linear infinite;
+            }
+
             .profile-btn:hover {
                 background: #018786;
                 color: #ffffff;
+            }
+
+            .last-update-time {
+                font-size: 0.8rem;
+                color: #888;
+                font-weight: normal;
+            }
+
+            .last-update-time.updating {
+                color: #bb86fc;
+                animation: pulse 1.5s infinite;
+            }
+
+            @keyframes pulse {
+                0% { opacity: 1; }
+                50% { opacity: 0.5; }
+                100% { opacity: 1; }
             }
 
             /* Pada media query untuk mobile */
@@ -1032,6 +1138,9 @@
                 <button class="btn btn-primary" onclick="tambahAbsensi()">
                     ✅ Simpan Absensi
                 </button>
+                <button class="btn btn-danger" onclick="showDeleteAllDateConfirmation()">
+                    🗑️ Hapus Semua Absensi Tanggal Ini
+                </button>
                 <button class="btn btn-danger boss-only" id="resetButton" onclick="showResetConfirmation()">
                     🗑️ Hapus Semua Data
                 </button>
@@ -1044,7 +1153,11 @@
 
         <div class="data-section">
             <div class="data-header">
-                <h2>📊 Data Absensi</h2>
+                <h2>📊 Data Absensi
+                    <span id="lastUpdateTime" class="last-update-time" style="font-size: 0.8rem; color: #888; margin-left: 10px;">
+                        Terakhir update: <span id="lastUpdateValue">-</span>
+                    </span>
+                </h2>
                 <div class="data-controls">
                     <div class="week-filter">
                         <label for="weekFilter">📅 Filter Minggu:</label>
@@ -1054,6 +1167,10 @@
                     <div class="search-container">
                         <input type="text" id="searchNama" placeholder="🔍 Cari berdasarkan nama..." oninput="searchData()">
                     </div>
+                    <!-- Tambahkan tombol refresh untuk Boss -->
+                    <button class="refresh-btn boss-only" onclick="refreshData()" title="Refresh data">
+                        🔄 Refresh Data
+                    </button>
                 </div>
             </div>
             
@@ -1138,6 +1255,7 @@
                             <th>Jam Keluar</th>
                             <th>Total Jam Duty</th>
                             <th>Status</th>
+                            <th class="boss-only">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="dataBody">
@@ -1186,6 +1304,8 @@
             appId: "1:760465739937:web:d11bebb7d6d8950beee0e0",
             measurementId: "G-RSGE82JVE4"
         };
+
+        
         
         // Inisialisasi Firebase
         firebase.initializeApp(firebaseConfig);
@@ -1244,6 +1364,92 @@
             applyRoleBasedUI(currentUser.role);
         }
 
+        // Fungsi untuk update waktu terakhir refresh
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            const lastUpdateEl = document.getElementById('lastUpdateValue');
+            if (lastUpdateEl) {
+                lastUpdateEl.textContent = timeString;
+                
+                // Animasi update
+                lastUpdateEl.parentElement.classList.add('updating');
+                setTimeout(() => {
+                    lastUpdateEl.parentElement.classList.remove('updating');
+                }, 1000);
+            }
+        }
+
+        // Panggil fungsi ini di loadDataFromFirebase setelah data terload
+        function loadDataFromFirebase() {
+            document.getElementById('loadingData').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+            
+            // Jika sudah ada listener, hapus dulu
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            
+            // Setup realtime listener
+            unsubscribe = db.collection("absensi")
+                .orderBy("waktuInput", "desc")
+                .onSnapshot((querySnapshot) => {
+                    absensiData = [];
+                    querySnapshot.forEach((doc) => {
+                        absensiData.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    document.getElementById('loadingData').style.display = 'none';
+                    filteredData = [...absensiData];
+                    applyFilters();
+                    
+                    // Update waktu terakhir refresh
+                    updateLastUpdateTime();
+                    
+                    console.log('Data loaded successfully. Total records:', absensiData.length);
+                }, (error) => {
+                    console.error("Error loading data: ", error);
+                    document.getElementById('loadingData').style.display = 'none';
+                    showPopup('❌ Error', 'Gagal memuat data dari server.', '❌', 'OK');
+                });
+        }
+
+        // Fungsi konfirmasi hapus untuk Boss (bisa hapus absensi siapa saja)
+        function showDeleteConfirmationBoss(absensiId, nama, tanggal, waktu) {
+            const formattedDate = new Date(tanggal).toLocaleDateString('id-ID');
+            
+            showPopup(
+                '⚠️ Hapus Absensi', 
+                `Apakah Anda yakin ingin menghapus absensi:<br><br>
+                <strong>Nama:</strong> ${nama}<br>
+                <strong>Tanggal:</strong> ${formattedDate}<br>
+                <strong>Waktu:</strong> ${waktu}<br><br>
+                Tindakan ini tidak dapat dibatalkan!`, 
+                '⚠️', 
+                'Ya, Hapus',
+                () => deleteAbsensiBoss(absensiId)
+            );
+        }
+
+        // Fungsi hapus untuk Boss
+        async function deleteAbsensiBoss(absensiId) {
+            try {
+                document.getElementById('loadingData').style.display = 'block';
+                await db.collection("absensi").doc(absensiId).delete();
+                showPopup('✅ Berhasil', 'Absensi berhasil dihapus!', '✅', 'OK');
+            } catch (error) {
+                console.error("Error deleting absensi: ", error);
+                showPopup('❌ Error', 'Gagal menghapus absensi. Silakan coba lagi.', '❌', 'OK');
+            } finally {
+                document.getElementById('loadingData').style.display = 'none';
+            }
+        }
+
         function fillUserData() {
             // Auto-fill nama - gunakan displayName jika ada, atau email tanpa domain
             const userName = currentUser.displayName || currentUser.email.split('@')[0];
@@ -1270,51 +1476,122 @@
             }
         }
 
+        // Fungsi untuk menampilkan konfirmasi hapus
+        function showDeleteConfirmation(absensiId, waktuAbsensi) {
+            showPopup(
+                '⚠️ Konfirmasi Hapus', 
+                `Apakah Anda yakin ingin menghapus absensi ${waktuAbsensi}? Tindakan ini tidak dapat dibatalkan!`, 
+                '⚠️', 
+                'Ya, Hapus',
+                () => deleteAbsensi(absensiId)
+            );
+        }
+
+        // Fungsi untuk menghapus absensi dari Firebase
+        async function deleteAbsensi(absensiId) {
+            try {
+                document.getElementById('loadingData').style.display = 'block';
+                await db.collection("absensi").doc(absensiId).delete();
+                showPopup('✅ Berhasil', 'Absensi berhasil dihapus!', '✅', 'OK');
+            } catch (error) {
+                console.error("Error deleting absensi: ", error);
+                showPopup('❌ Error', 'Gagal menghapus absensi. Silakan coba lagi.', '❌', 'OK');
+            } finally {
+                document.getElementById('loadingData').style.display = 'none';
+            }
+        }
+
+        // Fungsi konfirmasi hapus untuk Boss (bisa hapus absensi siapa saja)
+        function showDeleteConfirmationBoss(absensiId, nama, tanggal, waktu) {
+            const formattedDate = new Date(tanggal).toLocaleDateString('id-ID');
+            
+            // Gunakan template literal dengan backticks yang benar
+            const message = `Apakah Anda yakin ingin menghapus absensi ?
+                Tindakan ini tidak dapat dibatalkan!`;
+            
+            showPopup(
+                '⚠️ Hapus Absensi', 
+                message, 
+                '⚠️', 
+                'Ya, Hapus',
+                () => deleteAbsensiBoss(absensiId)
+            );
+        }
+        // Fungsi untuk menghapus semua absensi pada tanggal tertentu
+        async function deleteAllDateAbsensi(dateAbsensi) {
+            try {
+                document.getElementById('loadingData').style.display = 'block';
+                
+                // Hapus satu per satu menggunakan batch delete
+                const batch = db.batch();
+                dateAbsensi.forEach(absensi => {
+                    const docRef = db.collection("absensi").doc(absensi.id);
+                    batch.delete(docRef);
+                });
+                
+                await batch.commit();
+                showPopup('✅ Berhasil', `Semua ${dateAbsensi.length} absensi berhasil dihapus!`, '✅', 'OK');
+            } catch (error) {
+                console.error("Error deleting absensi: ", error);
+                showPopup('❌ Error', 'Gagal menghapus absensi. Silakan coba lagi.', '❌', 'OK');
+            } finally {
+                document.getElementById('loadingData').style.display = 'none';
+            }
+        }
+
+        // Di bagian JavaScript
+        function refreshData() {
+            console.log('Refreshing data...');
+            document.getElementById('loadingData').style.display = 'block';
+            loadDataFromFirebase();
+        }
+
         function applyRoleBasedUI(role) {
             const container = document.querySelector('.container');
             
-            // Tampilkan elemen berdasarkan role
-            document.querySelectorAll('.boss-only').forEach(el => {
-                el.style.display = role === 'boss' ? 'flex' : 'none';
-            });
+            // Hapus semua class non-admin-view dulu
+            container.classList.remove('non-admin-view');
             
-            document.querySelectorAll('.manajer-only').forEach(el => {
-                el.style.display = (role === 'boss' || role === 'manajer') ? 'flex' : 'none';
-            });
-            
-            document.querySelectorAll('.staff-only').forEach(el => {
-                el.style.display = 'flex';
-            });
-            
-            // Hanya Boss yang bisa melihat semua data dalam tabel
-            // Semua role lain (termasuk Manajer) akan melihat card personal
+            // Jika bukan boss, tambahkan class non-admin-view
             if (role !== 'boss') {
                 container.classList.add('non-admin-view');
-                // Hide search and filter controls for non-boss
                 document.querySelector('.data-controls').style.display = 'none';
             } else {
-                container.classList.remove('non-admin-view');
                 document.querySelector('.data-controls').style.display = 'flex';
             }
+            
+            console.log('Role applied:', role, 'Non-admin view:', role !== 'boss');
         }
 
         function updatePersonalAttendanceCards(userData, personalData) {
             const container = document.getElementById('attendanceCardsContainer');
-            const today = new Date().toISOString().split('T')[0];
+            const selectedDate = document.getElementById('tanggalDuty').value;
             
-            console.log('Updating cards for date:', today);
+            console.log('Updating cards for date:', selectedDate);
             console.log('Personal data:', personalData);
             
-            // Filter data untuk hari ini saja
-            const todayAttendance = personalData.filter(item => item.tanggalDuty === today);
-            console.log('Today attendance:', todayAttendance);
+            // Filter data untuk tanggal yang dipilih
+            const selectedDateAttendance = personalData.filter(item => item.tanggalDuty === selectedDate);
+            console.log('Selected date attendance:', selectedDateAttendance);
             
             container.innerHTML = '';
+            
+            // Update judul section dengan tanggal yang dipilih
+            const sectionTitle = document.querySelector('#personalAttendanceSection h3');
+            if (sectionTitle) {
+                const formattedDate = new Date(selectedDate).toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                sectionTitle.textContent = `📋 Absensi Tanggal ${formattedDate}`;
+            }
             
             // Buat 3 cards untuk maksimal 3 absensi per hari
             for (let i = 1; i <= 3; i++) {
                 const card = document.createElement('div');
-                const attendance = todayAttendance[i - 1]; // Data untuk card ini (index 0-based)
+                const attendance = selectedDateAttendance[i - 1]; // Data untuk card ini (index 0-based)
                 
                 console.log(`Creating card ${i}, attendance data:`, attendance);
                 
@@ -1325,7 +1602,7 @@
                     const jamMasuk = attendance.jamMasuk || 'N/A';
                     const jamKeluar = attendance.jamKeluar || 'N/A';
                     const totalJam = attendance.totalJam || 'N/A';
-                    const tanggal = attendance.tanggalDuty || today;
+                    const tanggal = attendance.tanggalDuty || selectedDate;
                     
                     console.log(`Card ${i} data:`, {jamMasuk, jamKeluar, totalJam, tanggal});
                     
@@ -1347,6 +1624,9 @@
                                 </div>
                             </div>
                             <div class="card-duration">${totalJam}</div>
+                            <button class="delete-btn" onclick="showDeleteConfirmation('${attendance.id}', '${jamMasuk} - ${jamKeluar}')" title="Hapus absensi ini">
+                                🗑️ Hapus
+                            </button>
                         </div>
                     `;
                 } else {
@@ -1374,30 +1654,37 @@
             console.log('=====================================');
         }
 
-
         function updatePersonalStats(personalData) {
             console.log('Updating personal stats with:', personalData.length, 'records');
             
-            // Hitung statistik personal
-            const totalAttendance = personalData.length;
+            const selectedDate = document.getElementById('tanggalDuty').value;
+            
+            // Filter data untuk tanggal yang dipilih
+            const selectedDateData = personalData.filter(item => item.tanggalDuty === selectedDate);
+            
+            // Hitung statistik untuk tanggal yang dipilih
+            const totalAttendance = selectedDateData.length;
             
             let totalMinutes = 0;
-            personalData.forEach(item => {
+            selectedDateData.forEach(item => {
                 totalMinutes += hitungTotalMenit(item.totalJam);
             });
             
             const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
             const avgHours = totalAttendance > 0 ? Math.round(totalMinutes / totalAttendance / 60 * 10) / 10 : 0;
             
-            // Hitung minggu ini
-            const today = new Date();
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay());
+            // Hitung minggu ini (berdasarkan tanggal yang dipilih)
+            const selectedDateObj = new Date(selectedDate);
+            const startOfWeek = new Date(selectedDateObj);
+            startOfWeek.setDate(selectedDateObj.getDate() - selectedDateObj.getDay());
             startOfWeek.setHours(0, 0, 0, 0);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
             
             const thisWeek = personalData.filter(item => {
                 const itemDate = new Date(item.tanggalDuty);
-                return itemDate >= startOfWeek;
+                return itemDate >= startOfWeek && itemDate <= endOfWeek;
             }).length;
             
             // Update UI
@@ -1411,7 +1698,7 @@
             if (avgEl) avgEl.textContent = avgHours;
             if (weekEl) weekEl.textContent = thisWeek;
             
-            console.log('Stats updated:', {totalAttendance, totalHours, avgHours, thisWeek});
+            console.log('Stats updated for date:', selectedDate, {totalAttendance, totalHours, avgHours, thisWeek});
         }
 
         function logout() {
@@ -1593,6 +1880,51 @@
             csv += `Jumlah Karyawan,,${totalKaryawan},,\n`;
             
             return csv;
+        }
+
+        // Fungsi refresh data yang sederhana
+        function refreshData() {
+            console.log('Refreshing data...');
+            
+            // Tampilkan loading
+            document.getElementById('loadingData').style.display = 'block';
+            
+            // Panggil ulang fungsi loadDataFromFirebase
+            loadDataFromFirebase();
+            
+            // Beri feedback visual
+            showPopup('🔄 Refresh', 'Data sedang di-refresh...', '🔄', 'OK', null, 1000);
+        }
+
+        // Fungsi ini sudah ada, tidak perlu diubah
+        function loadDataFromFirebase() {
+            document.getElementById('loadingData').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+            
+            // Jika sudah ada listener, hapus dulu
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            
+            // Setup realtime listener
+            unsubscribe = db.collection("absensi")
+                .orderBy("waktuInput", "desc")
+                .onSnapshot((querySnapshot) => {
+                    absensiData = [];
+                    querySnapshot.forEach((doc) => {
+                        absensiData.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    document.getElementById('loadingData').style.display = 'none';
+                    filteredData = [...absensiData];
+                    applyFilters();
+                    
+                    console.log('Data refreshed. Total records:', absensiData.length);
+                }, (error) => {
+                    console.error("Error loading data: ", error);
+                    document.getElementById('loadingData').style.display = 'none';
+                    showPopup('❌ Error', 'Gagal memuat data dari server.', '❌', 'OK');
+                });
         }
 
         // Fungsi untuk mendownload CSV
@@ -1842,8 +2174,12 @@
 
         // Fungsi untuk memeriksa batasan 3 data per hari
         function cekBatasHarian(nama, tanggal) {
+            // Gunakan tanggal yang dipilih, bukan tanggal hari ini
+            const selectedDate = document.getElementById('tanggalDuty').value;
+            const targetDate = tanggal || selectedDate;
+            
             const jumlahHariIni = absensiData.filter(item => 
-                item.nama === nama && item.tanggalDuty === tanggal
+                item.nama === nama && item.tanggalDuty === targetDate
             ).length;
             
             return jumlahHariIni < 3;
@@ -1978,7 +2314,7 @@
             console.log('Current user role:', currentUser.role);
             console.log('Current user email:', currentUser.email);
             console.log('Total data available:', absensiData.length);
-            console.log('All attendance data:', absensiData);
+            console.log('Selected date:', document.getElementById('tanggalDuty').value);
             
             // Hanya Boss yang melihat semua data dalam tabel
             // Semua role lain (termasuk Manajer) melihat card personal
@@ -2008,9 +2344,6 @@
                     ];
                     
                     const isMatch = matches.some(m => m === true);
-                    if (isMatch) {
-                        console.log('Found matching record:', item);
-                    }
                     return isMatch;
                 });
                 
@@ -2175,6 +2508,9 @@
             tbody.style.display = 'table-row-group';
             emptyState.style.display = 'none';
 
+        // Cek apakah user adalah boss
+            const isBoss = currentUser.role === 'boss';
+            
             tbody.innerHTML = dataToShow.map((item, index) => `
                 <tr>
                     <td>${index + 1}</td>
@@ -2185,8 +2521,17 @@
                     <td>${item.jamKeluar} WIB</td>
                     <td>${item.totalJam}</td>
                     <td><span class="status-badge status-pulang">${item.status}</span></td>
+                    ${isBoss ? `
+                    <td class="boss-only">
+                        <button class="table-delete-btn" onclick="showDeleteConfirmationBoss('${item.id}', '${item.nama}', '${item.tanggalDuty}', '${item.jamMasuk}-${item.jamKeluar}')" title="Hapus absensi ${item.nama}">
+                            🗑️
+                        </button>
+                    </td>
+                    ` : '<td class="boss-only"></td>'}
                 </tr>
             `).join('');
+            
+            console.log('Table updated. Is Boss:', isBoss, 'Total rows:', dataToShow.length);
         }
 
         function clearForm() {
@@ -2197,9 +2542,25 @@
             document.getElementById('limitInfo').style.display = 'none';
         }
 
-        // Initialize Firebase and load data
+       // Initialize Firebase and load data
         document.addEventListener('DOMContentLoaded', function() {
             loadDataFromFirebase();
+            
+            // === ATAU TARUH DI SINI ===
+            // Set today's date and current week
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('tanggalDuty').value = today;
+
+            // Event listener untuk perubahan tanggal
+            document.getElementById('tanggalDuty').addEventListener('change', function() {
+                console.log('Tanggal duty changed to:', this.value);
+                applyFilters(); // Ini akan memicu update cards dan stats
+            });
+
+            // Set current week in week filter
+            const currentWeek = getWeekString(new Date());
+            document.getElementById('weekFilter').value = currentWeek;
+            // === END OF KODE ===
         });
     </script>
 </body>
