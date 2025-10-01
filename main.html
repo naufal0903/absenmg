@@ -1341,7 +1341,20 @@
             
             // Load data user dari Firestore untuk mendapatkan info lengkap
             try {
-                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                // COBA DARI EMPLOYEES DULU, JIKA TIDAK ADA COBA DARI USERS
+                let userDoc;
+                
+                try {
+                    userDoc = await db.collection('employees').doc(currentUser.uid).get();
+                    if (!userDoc.exists) {
+                        // Jika tidak ada di employees, coba di users
+                        userDoc = await db.collection('users').doc(currentUser.uid).get();
+                    }
+                } catch (error) {
+                    console.log('Trying users collection...');
+                    userDoc = await db.collection('users').doc(currentUser.uid).get();
+                }
+                
                 if (userDoc.exists) {
                     const userProfile = userDoc.data();
                     currentUser = { ...currentUser, ...userProfile };
@@ -1354,7 +1367,7 @@
             }
             
             // Set informasi user di UI
-            document.getElementById('userDisplayName').textContent = currentUser.displayName || currentUser.email;
+            document.getElementById('userDisplayName').textContent = currentUser.nama || currentUser.displayName || currentUser.email;
             document.getElementById('userRole').textContent = getRoleDisplayName(currentUser.role);
             
             // Auto-fill nama dan jabatan
@@ -1383,6 +1396,82 @@
                     lastUpdateEl.parentElement.classList.remove('updating');
                 }, 1000);
             }
+        }
+
+        // Fungsi untuk mendapatkan daftar semua karyawan yang terdaftar
+        async function getAllEmployees() {
+            try {
+                console.log('🔄 Mengambil data semua karyawan dari Firestore...');
+                const usersSnapshot = await db.collection('employees').get(); // GANTI 'users' menjadi 'employees'
+                const employees = [];
+                
+                usersSnapshot.forEach(doc => {
+                    const userData = doc.data();
+                    const employee = {
+                        nama: userData.nama, // GANTI: gunakan field 'nama' bukan 'displayName'
+                        jabatan: userData.jabatan, // GANTI: langsung dari data jabatan
+                        email: userData.email,
+                        role: userData.role || determineRoleFromJabatan(userData.jabatan)
+                    };
+                    employees.push(employee);
+                    console.log('📝 Karyawan ditemukan:', employee);
+                });
+                
+                console.log('✅ Total karyawan ditemukan:', employees.length);
+                return employees;
+            } catch (error) {
+                console.error('❌ Error fetching employees:', error);
+                return [];
+            }
+        }
+
+        // Fungsi helper untuk menentukan role dari jabatan
+        function determineRoleFromJabatan(jabatan) {
+            switch(jabatan) {
+                case "BOS BESAR":
+                case "BOS":
+                    return "boss";
+                case "MANAJER":
+                    return "manajer";
+                case "M. SENIOR":
+                case "MECHANIC":
+                case "TRAINING":
+                default:
+                    return "staff";
+            }
+        }
+
+        // Fungsi untuk mendapatkan karyawan yang tidak absen
+        function getAbsentEmployees(allEmployees, attendanceData, weekRange) {
+            console.log('🔍 Mencari karyawan yang tidak absen...');
+            console.log('Total karyawan terdaftar:', allEmployees.length);
+            console.log('Total absensi minggu ini:', attendanceData.length);
+            
+            // Dapatkan daftar nama yang sudah absen dalam minggu tersebut
+            const presentEmployees = new Set();
+            attendanceData.forEach(item => {
+                // Normalisasi nama untuk matching yang lebih baik
+                const normalizedName = item.nama.toLowerCase().trim();
+                presentEmployees.add(normalizedName);
+                console.log('✅ Karyawan yang sudah absen:', item.nama, '(normalized:', normalizedName + ')');
+            });
+            
+            console.log('Total karyawan yang sudah absen:', presentEmployees.size);
+            
+            // Filter karyawan yang tidak ada dalam daftar absensi
+            const absentEmployees = allEmployees.filter(employee => {
+                // Normalisasi nama karyawan untuk matching
+                const normalizedEmployeeName = employee.nama.toLowerCase().trim();
+                const isAbsent = !presentEmployees.has(normalizedEmployeeName);
+                
+                if (isAbsent) {
+                    console.log('❌ Karyawan TIDAK absen:', employee.nama, '(normalized:', normalizedEmployeeName + ')');
+                }
+                return isAbsent;
+            });
+            
+            console.log('📊 Total karyawan tidak absen:', absentEmployees.length);
+            return absentEmployees;
         }
 
         // Panggil fungsi ini di loadDataFromFirebase setelah data terload
@@ -1450,13 +1539,13 @@
             }
         }
 
-        function fillUserData() {
-            // Auto-fill nama - gunakan displayName jika ada, atau email tanpa domain
-            const userName = currentUser.displayName || currentUser.email.split('@')[0];
+       function fillUserData() {
+            // Auto-fill nama - prioritaskan nama dari user data
+            const userName = currentUser.nama || currentUser.displayName || currentUser.email.split('@')[0];
             document.getElementById('nama').value = userName;
             
-            // Auto-fill jabatan berdasarkan role
-            const jabatan = roleToJobMapping[currentUser.role] || 'Staff';
+            // Auto-fill jabatan berdasarkan role atau dari user data
+            let jabatan = currentUser.jabatan || roleToJobMapping[currentUser.role] || 'Staff';
             const jabatanSelect = document.getElementById('jabatan');
             
             // Bersihkan dan isi ulang opsi jabatan
@@ -1710,19 +1799,20 @@
             });
         }
 
-        function createWorkbook(data, weekRange) {
+        function createWorkbook(data, weekRange, absentEmployees = []) {
+            console.log('📊 Membuat workbook Excel...');
+            console.log('Data absensi:', data.length, 'records');
+            console.log('Karyawan tidak absen:', absentEmployees.length, 'orang');
+            
             // Buat workbook baru
             const wb = XLSX.utils.book_new();
             
-            // Data untuk sheet utama (ringkasan per karyawan)
+            // === SHEET 1: Ringkasan Karyawan ===
             const employeeData = [];
-            const summaryData = [];
-            
-            // Header untuk sheet ringkasan karyawan
             employeeData.push(['LAPORAN ABSENSI MINGGUAN']);
             employeeData.push(['Periode', `${weekRange.startFormatted} - ${weekRange.endFormatted}`]);
             employeeData.push(['Dibuat pada', new Date().toLocaleDateString('id-ID')]);
-            employeeData.push([]); // Baris kosong
+            employeeData.push([]);
             employeeData.push(['Nama', 'Jabatan', 'Total Jam', 'Total Shift', 'Rata-rata Jam/Hari']);
             
             // Hitung data per karyawan
@@ -1751,7 +1841,6 @@
             Object.entries(employeeStats).forEach(([nama, data]) => {
                 const totalJam = Math.round(data.totalMenit / 60 * 10) / 10;
                 const avgHours = data.shift > 0 ? Math.round(data.totalMenit / data.shift / 60 * 10) / 10 : 0;
-                
                 employeeData.push([nama, data.jabatan, totalJam, data.shift, avgHours]);
             });
             
@@ -1764,17 +1853,16 @@
             employeeData.push(['TOTAL', '', totalJamAll, totalShiftAll, rataRataAll]);
             employeeData.push(['Jumlah Karyawan', '', totalKaryawan, '', '']);
             
-            // Buat worksheet untuk ringkasan karyawan
             const wsEmployee = XLSX.utils.aoa_to_sheet(employeeData);
+            XLSX.utils.book_append_sheet(wb, wsEmployee, 'Ringkasan Karyawan');
             
-            // Data untuk sheet detail absensi
+            // === SHEET 2: Detail Absensi ===
             const detailData = [];
             detailData.push(['DETAIL ABSENSI MINGGUAN']);
             detailData.push(['Periode', `${weekRange.startFormatted} - ${weekRange.endFormatted}`]);
             detailData.push([]);
             detailData.push(['No', 'Nama', 'Jabatan', 'Tanggal', 'Jam Masuk', 'Jam Keluar', 'Total Jam', 'Status']);
             
-            // Isi data detail
             data.forEach((item, index) => {
                 detailData.push([
                     index + 1,
@@ -1788,18 +1876,51 @@
                 ]);
             });
             
-            // Buat worksheet untuk detail absensi
             const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
-            
-            // Tambahkan worksheets ke workbook
-            XLSX.utils.book_append_sheet(wb, wsEmployee, 'Ringkasan Karyawan');
             XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail Absensi');
+            
+            // === SHEET 3: Karyawan Tidak Absen ===
+            if (absentEmployees.length > 0) {
+                console.log('➕ Menambahkan sheet "Karyawan Tidak Absen"');
+                const absentData = [];
+                
+                // Header
+                absentData.push(['KARYAWAN YANG TIDAK ABSEN MINGGU INI']);
+                absentData.push(['Periode', `${weekRange.startFormatted} - ${weekRange.endFormatted}`]);
+                absentData.push(['Dibuat pada', new Date().toLocaleDateString('id-ID')]);
+                absentData.push([]);
+                absentData.push(['No', 'Nama', 'Jabatan', 'Email', 'Keterangan']);
+                
+                // Data karyawan
+                absentEmployees.forEach((employee, index) => {
+                    absentData.push([
+                        index + 1,
+                        employee.nama,
+                        employee.jabatan,
+                        employee.email,
+                        'Tidak ada absensi'
+                    ]);
+                });
+                
+                // Footer
+                absentData.push([]);
+                absentData.push(['Total Karyawan Tidak Absen', '', '', absentEmployees.length, '']);
+                
+                const wsAbsent = XLSX.utils.aoa_to_sheet(absentData);
+                XLSX.utils.book_append_sheet(wb, wsAbsent, 'Karyawan Tidak Absen');
+            } else {
+                console.log('ℹ️ Tidak ada karyawan yang tidak absen, skip sheet');
+            }
+            
+            console.log('✅ Workbook berhasil dibuat dengan', wb.SheetNames.length, 'sheet');
+            console.log('Sheet yang dibuat:', wb.SheetNames);
             
             return wb;
         }
 
         // Fungsi untuk mendownload XLSX
-        function downloadWeeklyXLSX() {
+        // Fungsi untuk mendownload XLSX (VERSI UPDATE)
+        async function downloadWeeklyXLSX() {
             if (!currentWeekFilter) {
                 showPopup('⚠️ Peringatan', 'Pilih minggu terlebih dahulu untuk mendownload laporan.', '⚠️', 'OK');
                 return;
@@ -1808,10 +1929,14 @@
             const weekRange = getWeekRange(currentWeekFilter);
             if (!weekRange) return;
             
+            console.log('📅 Download laporan untuk minggu:', weekRange.startFormatted, '-', weekRange.endFormatted);
+            
             // Filter data untuk minggu yang dipilih
             const weeklyData = absensiData.filter(item => {
                 return item.tanggalDuty >= weekRange.start && item.tanggalDuty <= weekRange.end;
             });
+            
+            console.log('📊 Data absensi minggu ini:', weeklyData.length);
             
             if (weeklyData.length === 0) {
                 showPopup('⚠️ Peringatan', 'Tidak ada data untuk minggu yang dipilih.', '⚠️', 'OK');
@@ -1819,17 +1944,40 @@
             }
             
             try {
-                // Buat workbook
-                const wb = createWorkbook(weeklyData, weekRange);
+                // Tampilkan loading
+                showPopup('🔄 Memproses', 'Mengumpulkan data karyawan dan absensi...', '🔄', 'Tunggu');
+                
+                // Dapatkan semua karyawan
+                const allEmployees = await getAllEmployees();
+                
+                if (allEmployees.length === 0) {
+                    showPopup('⚠️ Peringatan', 'Tidak ada data karyawan yang ditemukan.', '⚠️', 'OK');
+                    return;
+                }
+                
+                // Dapatkan karyawan yang tidak absen
+                const absentEmployees = getAbsentEmployees(allEmployees, weeklyData, weekRange);
+                
+                // Buat workbook dengan data karyawan yang tidak absen
+                const wb = createWorkbook(weeklyData, weekRange, absentEmployees);
                 
                 // Generate file XLSX
                 const fileName = `laporan-absensi-${weekRange.start}-${weekRange.end}.xlsx`;
                 XLSX.writeFile(wb, fileName);
                 
-                showPopup('✅ Berhasil', `Laporan mingguan berhasil didownload: ${fileName}`, '✅', 'OK');
+                let successMessage = `Laporan mingguan berhasil didownload: ${fileName}`;
+                if (absentEmployees.length > 0) {
+                    successMessage += `\n\n❌ Terdapat ${absentEmployees.length} karyawan yang tidak absen dalam minggu ini.`;
+                    successMessage += `\n\nLihat sheet "Karyawan Tidak Absen" untuk detailnya.`;
+                } else {
+                    successMessage += `\n\n✅ Semua karyawan telah melakukan absensi minggu ini.`;
+                }
+                
+                showPopup('✅ Berhasil', successMessage, '✅', 'OK');
+                
             } catch (error) {
-                console.error('Error creating XLSX:', error);
-                showPopup('❌ Error', 'Gagal membuat file laporan. Silakan coba lagi.', '❌', 'OK');
+                console.error('❌ Error creating XLSX:', error);
+                showPopup('❌ Error', 'Gagal membuat file laporan: ' + error.message, '❌', 'OK');
             }
         }
 
@@ -2304,7 +2452,7 @@
             const searchTerm = document.getElementById('searchNama').value.toLowerCase().trim();
             const weekInfo = document.getElementById('weekInfo');
             const weekSummary = document.getElementById('weekSummary');
-            const searchInfo = document.getElementById('searchInfo');
+            const searchInfo = document.getElementById('searchResultInfo');
             const personalSection = document.getElementById('personalAttendanceSection');
             
             let tempData = [...absensiData];
@@ -2321,29 +2469,33 @@
             if (currentUser.role !== 'boss') {
                 // Coba berbagai variasi nama untuk matching
                 const userEmail = currentUser.email;
-                const userDisplayName = currentUser.displayName;
+                const userDisplayName = currentUser.nama || currentUser.displayName;
                 const emailPrefix = userEmail.split('@')[0];
                 
                 console.log('Non-boss user detected. Trying to match with:');
+                console.log('- Nama dari user data:', userDisplayName);
                 console.log('- Email:', userEmail);
-                console.log('- Display Name:', userDisplayName);
                 console.log('- Email Prefix:', emailPrefix);
                 
                 // Filter data dengan berbagai kemungkinan matching
                 tempData = absensiData.filter(item => {
+                    const itemNameNormalized = item.nama.toLowerCase().trim();
+                    const userDisplayNameNormalized = (userDisplayName || '').toLowerCase().trim();
+                    const emailPrefixNormalized = emailPrefix.toLowerCase().trim();
+                    
                     const matches = [
-                        item.nama === userDisplayName,
-                        item.nama === emailPrefix,
-                        item.nama === userEmail,
+                        itemNameNormalized === userDisplayNameNormalized,
+                        itemNameNormalized === emailPrefixNormalized,
                         item.userId === currentUser.uid,
-                        // Case insensitive matching
-                        item.nama.toLowerCase() === (userDisplayName || '').toLowerCase(),
-                        item.nama.toLowerCase() === emailPrefix.toLowerCase(),
-                        // Partial matching for names with dots
-                        item.nama.replace(/\./g, '') === emailPrefix.replace(/\./g, ''),
+                        item.userEmail === currentUser.email
                     ];
                     
                     const isMatch = matches.some(m => m === true);
+                    
+                    if (isMatch) {
+                        console.log('✅ Match found:', item.nama, 'with user:', userDisplayName);
+                    }
+                    
                     return isMatch;
                 });
                 
