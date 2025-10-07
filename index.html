@@ -361,7 +361,7 @@
             "Smirnov Ahsani": "M. SENIOR",
             "Dahyun": "M. SENIOR",
             "Ruby Charissa": "M. SENIOR",
-            "Ajat": "TRAINING",
+            "Ajat": "MECHANIC",
             "Alexei": "TRAINING",
             "Mai": "TRAINING",
             "Zoestaz": "TRAINING",
@@ -384,7 +384,9 @@
             "Akmal": "TRAINING",
             "Vanne": "TRAINING",
             "Baco": "TRAINING",
-            "Lucas": "TRAINING"
+            "Lucas": "TRAINING",
+            "Cabe": "TRAINING",
+            "Athena": "TRAINING"
         };
         
         // Fungsi login
@@ -469,11 +471,11 @@
             document.getElementById('generatePopup').style.display = 'none';
         }
         
-        // Fungsi untuk menghasilkan email dari nama - DIPERBAIKI
+        // Fungsi untuk menghasilkan email dari nama
         function generateEmailFromName(nama) {
-            // Gunakan nama asli dari allowedEmployees (dengan spasi)
+            // Mengubah nama menjadi format email
             return nama.toLowerCase()
-                .replace(/[^a-z0-9\s]/g, '')  // Hapus karakter khusus, TETAPI biarkan spasi
+                .replace(/[^a-z0-9\s]/g, '')  // Hapus karakter khusus
                 .replace(/\s+/g, '.')         // Ganti spasi dengan titik
                 .substring(0, 20) + '@motiongarage.com';
         }
@@ -489,310 +491,57 @@
             return password;
         }
         
-        // FUNGSI GENERATE ACCOUNT YANG DIPERBAIKI
-function setupGenerateForm() {
-    const namaInput = document.getElementById('newNama');
-    const emailInput = document.getElementById('newEmail');
-    const passwordInput = document.getElementById('newPassword');
-    const jabatanSelect = document.getElementById('newJabatan');
-    
-    namaInput.addEventListener('input', function() {
-        const namaInputValue = this.value.trim();
-        
-        if (namaInputValue !== '') {
-            // Cari nama yang cocok (case insensitive) dengan normalisasi
-            const foundKey = Object.keys(allowedEmployees).find(
-                key => key.toLowerCase().replace(/[^a-z\s]/g, '') === 
-                       namaInputValue.toLowerCase().replace(/[^a-z\s]/g, '')
-            );
+        // Fungsi untuk mengisi email dan password saat nama diisi
+        function setupGenerateForm() {
+            const namaInput = document.getElementById('newNama');
+            const emailInput = document.getElementById('newEmail');
+            const passwordInput = document.getElementById('newPassword');
+            const jabatanSelect = document.getElementById('newJabatan');
             
-            if (foundKey) {
-                // Gunakan nama ASLI dari allowedEmployees (bukan input user)
-                jabatanSelect.value = allowedEmployees[foundKey];
-                emailInput.value = generateEmailFromName(foundKey); // Gunakan nama asli
-                passwordInput.value = generateRandomPassword();
+            namaInput.addEventListener('input', function() {
+                const nama = this.value.trim();
                 
-                console.log(`Nama ditemukan: "${foundKey}" -> Email: ${emailInput.value}`);
-            } else {
-                jabatanSelect.value = '';
-                emailInput.value = '';
-                passwordInput.value = '';
-            }
-        } else {
-            jabatanSelect.value = '';
-            emailInput.value = '';
-            passwordInput.value = '';
-        }
-    });
-}
-
-// Fungsi generate email yang konsisten
-function generateEmailFromName(nama) {
-    // SELALU gunakan nama dari allowedEmployees (format asli)
-    return nama.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')  // Hapus karakter khusus
-        .replace(/\s+/g, '.')         // Ganti spasi dengan titik
-        .substring(0, 20) + '@motiongarage.com';
-}
-
-
-// FUNGSI UNTUK STANDARDISASI DATA YANG SUDAH ADA
-async function standardizeExistingData() {
-    console.log('🔄 Standardisasi data existing...');
-    
-    try {
-        const querySnapshot = await db.collection('employees').get();
-        const updates = [];
-        
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            const currentNama = data.nama;
-            
-            // Cari nama yang benar di allowedEmployees
-            const correctName = Object.keys(allowedEmployees).find(
-                key => key.toLowerCase().replace(/[^a-z\s]/g, '') === 
-                       currentNama.toLowerCase().replace(/[^a-z\s]/g, '')
-            );
-            
-            // Jika ditemukan nama yang benar dan berbeda dengan yang sekarang
-            if (correctName && correctName !== currentNama) {
-                console.log(`🔄 Perbaiki: "${currentNama}" -> "${correctName}"`);
-                
-                updates.push(
-                    db.collection('employees').doc(doc.id).update({
-                        nama: correctName,
-                        // Update email juga jika perlu
-                        email: generateEmailFromName(correctName)
-                    })
-                );
-            }
-        });
-        
-        await Promise.all(updates);
-        console.log(`✅ ${updates.length} data berhasil distandardisasi`);
-        
-    } catch (error) {
-        console.error('❌ Error standardisasi:', error);
-    }
-}
-
-
-
-// FUNGSI PEMBERSIHAN YANG LEBIH TELITI
-async function cleanAllDuplicates() {
-    console.log('🔍 Mencari dan membersihkan semua duplikat...');
-    
-    try {
-        const querySnapshot = await db.collection('employees').get();
-        const employeesMap = new Map();
-        const duplicates = [];
-        
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            const nama = data.nama;
-            
-            // NORMALISASI: ubah semua ke lowercase dan hapus karakter non-alphabet
-            const normalizedNama = nama.toLowerCase()
-                .replace(/[^a-z\s]/g, '')  // Hapus semua karakter non-huruf (termasuk titik)
-                .replace(/\s+/g, ' ')      // Normalisasi spasi
-                .trim();
-            
-            console.log(`Proses: "${nama}" -> "${normalizedNama}"`);
-            
-            if (employeesMap.has(normalizedNama)) {
-                // Tandai sebagai duplikat
-                duplicates.push({
-                    id: doc.id,
-                    namaAsli: nama,
-                    namaNormalized: normalizedNama,
-                    email: data.email,
-                    jabatan: data.jabatan,
-                    createdAt: data.createdAt
-                });
-                console.log(`❌ DUPLIKAT: ${nama}`);
-            } else {
-                employeesMap.set(normalizedNama, {
-                    id: doc.id,
-                    namaAsli: nama,
-                    namaNormalized: normalizedNama,
-                    email: data.email,
-                    jabatan: data.jabatan,
-                    createdAt: data.createdAt
-                });
-            }
-        });
-        
-        console.log(`📊 Total data: ${querySnapshot.size}`);
-        console.log(`🔄 Duplikat ditemukan: ${duplicates.length}`);
-        
-        // Hapus duplikat (simpan yang paling lama)
-        for (const dup of duplicates) {
-            console.log(`🗑️ Menghapus duplikat: ${dup.namaAsli} (${dup.email})`);
-            await db.collection('employees').doc(dup.id).delete();
-        }
-        
-        console.log('✅ Pembersihan selesai!');
-        return duplicates.length;
-        
-    } catch (error) {
-        console.error('❌ Error:', error);
-        throw error;
-    }
-}
-
-// Jalankan dengan: cleanAllDuplicates()
-
-// FUNGSI UNTUK MELIHAT SEMUA DATA YANG BERPOTENSI DUPLIKAT
-function analyzeDuplicates() {
-    console.log('🔍 Analisis data duplikat...');
-    
-    db.collection('employees').get().then((querySnapshot) => {
-        const namaGroups = {};
-        
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            const nama = data.nama;
-            
-            // Buat key normalisasi
-            const key = nama.toLowerCase()
-                .replace(/[^a-z\s]/g, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-            
-            if (!namaGroups[key]) {
-                namaGroups[key] = [];
-            }
-            
-            namaGroups[key].push({
-                id: doc.id,
-                nama: data.nama,
-                email: data.email,
-                jabatan: data.jabatan
+                if (nama !== '') {
+                    // Cari nama yang cocok (case insensitive)
+                    const foundKey = Object.keys(allowedEmployees).find(
+                        key => key.toLowerCase() === nama.toLowerCase()
+                    );
+                    
+                    if (foundKey) {
+                        // Jika nama valid, set jabatan sesuai data
+                        jabatanSelect.value = allowedEmployees[foundKey];
+                        emailInput.value = generateEmailFromName(foundKey);
+                        passwordInput.value = generateRandomPassword();
+                    } else {
+                        // Jika nama tidak valid, reset jabatan, email dan password
+                        jabatanSelect.value = '';
+                        emailInput.value = '';
+                        passwordInput.value = '';
+                    }
+                } else {
+                    jabatanSelect.value = '';
+                    emailInput.value = '';
+                    passwordInput.value = '';
+                }
             });
-        });
+        }
         
-        // Tampilkan yang punya duplikat
-        console.log('=== DATA YANG DUPLIKAT ===');
-        Object.keys(namaGroups).forEach(key => {
-            if (namaGroups[key].length > 1) {
-                console.log(`\n🔄 Group: "${key}"`);
-                namaGroups[key].forEach(emp => {
-                    console.log(`   - ${emp.nama} | ${emp.email} | ${emp.jabatan}`);
-                });
-            }
-        });
-        
-        // Tampilkan summary
-        const totalDuplicates = Object.keys(namaGroups).filter(key => namaGroups[key].length > 1).length;
-        console.log(`\n📊 Total group duplikat: ${totalDuplicates}`);
-        
-    }).catch(error => {
-        console.error('Error:', error);
-    });
-}
-
-// Jalankan dengan: analyzeDuplicates()
-
-
-
-        // Script untuk membersihkan data duplikat (jalankan sekali saja)
-function cleanDuplicateEmployees() {
-    db.collection('employees').get().then((querySnapshot) => {
-        const employees = {};
-        const duplicates = [];
-        
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            const emailKey = data.email.toLowerCase();
-            
-            if (employees[emailKey]) {
-                duplicates.push(doc.id);
-            } else {
-                employees[emailKey] = doc.id;
-            }
-        });
-        
-        // Hapus data duplikat
-        duplicates.forEach(duplicateId => {
-            db.collection('employees').doc(duplicateId).delete();
-        });
-        
-        console.log(`Deleted ${duplicates.length} duplicate records`);
-    });
-}
-
-// FUNGSI UNTUK MEMBERSIHKAN DATA DUPLIKAT - jalankan sekali saja
-function cleanDuplicateEmployees() {
-    console.log('Mulai membersihkan data duplikat...');
-    
-    db.collection('employees').get().then((querySnapshot) => {
-        const employeesByName = {};
-        const duplicates = [];
-        
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            const nama = data.nama;
-            
-            // Normalisasi nama untuk comparison (case insensitive, hapus titik/spasi)
-            const normalizedNama = nama.toLowerCase().replace(/[.\s]/g, '');
-            
-            if (employeesByName[normalizedNama]) {
-                // Jika sudah ada, tandai sebagai duplikat
-                console.log(`DUPLIKAT DITEMUKAN: ${nama} (ID: ${doc.id})`);
-                duplicates.push({
-                    id: doc.id,
-                    nama: nama,
-                    email: data.email,
-                    jabatan: data.jabatan
-                });
-            } else {
-                employeesByName[normalizedNama] = {
-                    id: doc.id,
-                    nama: nama,
-                    email: data.email,
-                    jabatan: data.jabatan
-                };
-            }
-        });
-        
-        console.log(`Total duplikat ditemukan: ${duplicates.length}`);
-        console.log('Data duplikat:', duplicates);
-        
-        // Hapus data duplikat (simpan yang paling baru atau pilih manual)
-        duplicates.forEach(dup => {
-            // Hapus record duplikat
-            db.collection('employees').doc(dup.id).delete()
-                .then(() => {
-                    console.log(`✅ Berhasil hapus duplikat: ${dup.nama} (${dup.email})`);
-                })
-                .catch(error => {
-                    console.error(`❌ Gagal hapus ${dup.nama}:`, error);
-                });
-        });
-        
-    }).catch(error => {
-        console.error('Error mengambil data:', error);
-    });
-}
-
-// Jalankan fungsi pembersihan
-// cleanDuplicateEmployees();
-        
-// Fungsi untuk membuat akun baru dengan pengecekan duplikat
-function generateAccount() {
-    const namaInput = document.getElementById('newNama').value.trim();
+       function generateAccount() {
+    const nama = document.getElementById('newNama').value.trim();
     const jabatan = document.getElementById('newJabatan').value;
     const email = document.getElementById('newEmail').value;
     const password = document.getElementById('newPassword').value;
     
-    if (!namaInput || !jabatan) {
+    console.log("Data yang akan dikirim:", { nama, jabatan, email, password });
+    
+    if (!nama || !jabatan) {
         alert('Mohon isi nama dan pastikan jabatan terisi!');
         return;
     }
     
     // Cari nama yang cocok (case insensitive)
     const foundKey = Object.keys(allowedEmployees).find(
-        key => key.toLowerCase() === namaInput.toLowerCase()
+        key => key.toLowerCase() === nama.toLowerCase()
     );
     
     if (!foundKey) {
@@ -805,72 +554,39 @@ function generateAccount() {
         return;
     }
     
-    // CEK DUPLIKAT SEBELUM MEMBUAT AKUN BARU
-    checkDuplicateEmployee(foundKey, email).then(hasDuplicate => {
-        if (hasDuplicate) {
-            alert('Akun untuk karyawan ini sudah ada! Gunakan fitur login biasa.');
-            return;
-        }
-        
-        // Lanjutkan dengan membuat akun jika tidak ada duplikat
-        createNewEmployeeAccount(foundKey, jabatan, email, password);
-    }).catch(error => {
-        console.error('Error checking duplicate:', error);
-        alert('Terjadi kesalahan saat memeriksa data.');
-    });
-}
-
-// Fungsi untuk mengecek duplikat
-function checkDuplicateEmployee(nama, email) {
-    return new Promise((resolve, reject) => {
-        // Cek berdasarkan nama (normalized)
-        const normalizedNama = nama.toLowerCase().replace(/[.\s]/g, '');
-        
-        db.collection('employees')
-            .where('nama', '>=', '')
-            .get()
-            .then(querySnapshot => {
-                let hasDuplicate = false;
-                
-                querySnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const existingNamaNormalized = data.nama.toLowerCase().replace(/[.\s]/g, '');
-                    
-                    if (existingNamaNormalized === normalizedNama) {
-                        hasDuplicate = true;
-                        console.log(`Duplikat ditemukan: ${data.nama} vs ${nama}`);
-                    }
-                });
-                
-                resolve(hasDuplicate);
-            })
-            .catch(reject);
-    });
-}
-
-// Fungsi terpisah untuk membuat akun
-function createNewEmployeeAccount(nama, jabatan, email, password) {
+    // Tampilkan loading
     document.getElementById('loading').style.display = 'block';
     closePopup();
     
+    console.log("Membuat akun dengan:", email, password);
+    
+    // Buat akun di Firebase Authentication
     auth.createUserWithEmailAndPassword(email, password)
         .then((userCredential) => {
+            console.log("Akun berhasil dibuat:", userCredential.user);
+            
+            // Simpan data tambahan ke Firestore
             const user = userCredential.user;
             return db.collection('employees').doc(user.uid).set({
-                nama: nama, // Gunakan nama ASLI dari allowedEmployees
+                nama: foundKey,
                 jabatan: jabatan,
                 email: email,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
+                console.log("Data berhasil disimpan di Firestore");
                 return auth.signInWithEmailAndPassword(email, password);
             });
         })
         .then((userCredential) => {
+            console.log("Login berhasil:", userCredential.user);
+            
             const user = userCredential.user;
             return db.collection('employees').doc(user.uid).get()
                 .then((doc) => {
                     if (doc.exists) {
                         const userData = doc.data();
+                        console.log("Data dari Firestore:", userData);
+                        
                         localStorage.setItem('user', JSON.stringify({
                             uid: user.uid,
                             email: user.email,
@@ -878,6 +594,7 @@ function createNewEmployeeAccount(nama, jabatan, email, password) {
                             jabatan: userData.jabatan,
                             role: determineRole(userData.jabatan)
                         }));
+                        
                         window.location.href = 'main.html';
                     } else {
                         throw new Error('Data pengguna tidak ditemukan');
@@ -886,25 +603,32 @@ function createNewEmployeeAccount(nama, jabatan, email, password) {
         })
         .catch((error) => {
             document.getElementById('loading').style.display = 'none';
-            console.error("Error creating account:", error);
-            alert("Terjadi kesalahan saat membuat akun: " + error.message);
+            console.error("Error detail:", error);
+            console.error("Error code:", error.code);
+            console.error("Error message:", error.message);
+            
+            let errorMessage = "Terjadi kesalahan saat membuat akun: ";
+            
+            switch(error.code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = "Email sudah digunakan. Silakan login dengan email tersebut.";
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = "Format email tidak valid.";
+                    break;
+                case 'auth/operation-not-allowed':
+                    errorMessage = "Operasi tidak diizinkan. Hubungi administrator.";
+                    break;
+                case 'auth/weak-password':
+                    errorMessage = "Password terlalu lemah. Minimal 6 karakter.";
+                    break;
+                default:
+                    errorMessage += error.message;
+            }
+            
+            alert(errorMessage);
         });
 }
-
-// Fungsi untuk melihat semua data karyawan
-function listAllEmployees() {
-    db.collection('employees').get().then((querySnapshot) => {
-        console.log('=== DAFTAR SEMUA KARYAWAN ===');
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            console.log(`- ${data.nama} | ${data.jabatan} | ${data.email}`);
-        });
-        console.log(`Total: ${querySnapshot.size} karyawan`);
-    });
-}
-
-// Jalankan untuk verifikasi
-// listAllEmployees();
         
         // Handle enter key press
         document.addEventListener('keypress', function(e) {
