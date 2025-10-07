@@ -1540,18 +1540,28 @@
         }
 
        function fillUserData() {
-            // Auto-fill nama - prioritaskan nama dari user data
-            const userName = currentUser.nama || currentUser.displayName || currentUser.email.split('@')[0];
-            document.getElementById('nama').value = userName;
-            
-            // Auto-fill jabatan berdasarkan role atau dari user data
-            let jabatan = currentUser.jabatan || roleToJobMapping[currentUser.role] || 'Staff';
-            const jabatanSelect = document.getElementById('jabatan');
-            
-            // Bersihkan dan isi ulang opsi jabatan
-            jabatanSelect.innerHTML = `<option value="${jabatan}">${jabatan}</option>`;
-            jabatanSelect.value = jabatan;
-        }
+    // Normalisasi nama - hapus karakter khusus dan konsistenkan format
+    let userName = currentUser.nama || currentUser.displayName || currentUser.email.split('@')[0];
+    
+    // Normalisasi: hapus titik, ganti dengan spasi, dan konsistenkan
+    userName = userName
+        .replace(/\./g, ' ') // Ganti titik dengan spasi
+        .replace(/\s+/g, ' ') // Hapus spasi berlebih
+        .trim()
+        .toLowerCase()
+        .split(' ') // Pisah per kata
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Kapitalisasi setiap kata
+        .join(' '); // Gabung kembali
+    
+    document.getElementById('nama').value = userName;
+    
+    // Auto-fill jabatan berdasarkan role atau dari user data
+    let jabatan = currentUser.jabatan || roleToJobMapping[currentUser.role] || 'Staff';
+    const jabatanSelect = document.getElementById('jabatan');
+    
+    jabatanSelect.innerHTML = `<option value="${jabatan}">${jabatan}</option>`;
+    jabatanSelect.value = jabatan;
+}
 
         function getRoleDisplayName(role) {
             switch(role) {
@@ -2335,6 +2345,9 @@
 
         async function tambahAbsensi() {
             const nama = document.getElementById('nama').value.trim();
+            // Normalisasi nama sebelum disimpan
+            const namaNormalized = normalizeName(nama);
+            
             const jabatan = document.getElementById('jabatan').value;
             const tanggalDuty = document.getElementById('tanggalDuty').value;
             const jamMasuk = document.getElementById('jamMasuk').value;
@@ -2361,15 +2374,16 @@
             const status = 'Selesai';
 
             const absensi = {
-                nama,
+                nama: namaNormalized, // Gunakan nama yang sudah dinormalisasi
+                namaOriginal: nama,   // Simpan juga versi original untuk referensi
                 jabatan,
                 tanggalDuty,
                 jamMasuk,
                 jamKeluar,
                 totalJam,
                 status,
-                userId: currentUser.uid, // Tambahkan user ID untuk tracking
-                userEmail: currentUser.email, // TAMBAHAN: Untuk backup matching
+                userId: currentUser.uid,
+                userEmail: currentUser.email,
                 waktuInput: new Date().toISOString()
             };
 
@@ -2402,6 +2416,47 @@
             });
             console.log('=============================');
         }
+
+
+        // Jalankan sekali untuk memperbaiki data yang sudah ada
+async function fixExistingData() {
+    try {
+        const snapshot = await db.collection("absensi").get();
+        const batch = db.batch();
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.nama) {
+                const normalizedName = normalizeName(data.nama);
+                if (normalizedName !== data.nama) {
+                    console.log(`Memperbaiki: ${data.nama} -> ${normalizedName}`);
+                    batch.update(doc.ref, { 
+                        nama: normalizedName,
+                        namaOriginal: data.nama // Simpan original untuk backup
+                    });
+                }
+            }
+        });
+        
+        await batch.commit();
+        console.log('Data berhasil dinormalisasi');
+    } catch (error) {
+        console.error('Error fixing data:', error);
+    }
+}
+
+// Fungsi normalisasi nama
+function normalizeName(name) {
+    if (!name) return '';
+    return name
+        .toLowerCase()
+        .replace(/\./g, ' ') // Ganti titik dengan spasi
+        .replace(/\s+/g, ' ') // Hapus spasi berlebih
+        .trim();
+}
+
+// Panggil fungsi ini sekali saja di console
+// fixExistingData();
 
         function showResetConfirmation() {
             // Hanya boss yang bisa menghapus semua data
